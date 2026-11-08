@@ -47,7 +47,7 @@ if (!$kilit || !flock($kilit, LOCK_EX | LOCK_NB)) { cevap(409, ['ok' => false, '
 // yalnız yapay zekâ devamı: sahibinden verisi gönderilmez, açıklaması bekleyen araçlar yazılır (eklenti kalan varsa tekrar çağırır)
 if (!empty($g['yz_devam'])) {
     $v = veri_oku();
-    $yz = yz_bekleyenleri_doldur($v['araclar'], 50);
+    $yz = yz_bekleyenleri_doldur($v['araclar'], 40);
     $yazilan = count(array_filter($yz, fn($x) => str_contains($x, 'açıklama yazıldı')));
     if ($yazilan > 0) { veri_yaz($v, 'yapay zekâ açıklaması (eklenti)'); }
     $kalan = count(array_filter($v['araclar'], fn($a) => ($a['yz_durum'] ?? '') === 'bekliyor' && ($a['durum'] ?? 'satista') !== 'satildi'));
@@ -82,18 +82,26 @@ $degisiklik = count($rapor['eklenen']) + count($rapor['guncellenen']) + count($r
 @mkdir(YEDEK, 0755, true);
 $sonuc = ['ok' => true, 'onizle' => $onizle, 'okunan' => count($gelen), 'rapor' => $rapor,
           'satista' => count(array_filter($liste, fn($a) => ($a['durum'] ?? 'satista') !== 'satildi')), 'yazildi' => false];
-if (!$onizle) {   // ham açıklamalar yapay zekâ için saklanır; yeni ilanların açıklaması yazılır (en çok ~50 sn)
+if (!$onizle) {
+    // 1) önce araç listesi yazılır (yapay zekâ yavaşlasa / istek kesilse bile araçlar güncel olsun)
     foreach ($R as $id => $ham) { if (is_array($ham)) { yz_ham_kaydet((string)$id, (string)($ham['ac'] ?? '')); } }
-    $yz = yz_bekleyenleri_doldur($liste, 50);
-    if ($yz) { $sonuc['rapor']['yapay_zeka'] = $yz; $degisiklik += count($yz); }
-    elseif (!yz_hazir() && array_filter($liste, fn($a) => ($a['yz_durum'] ?? '') === 'bekliyor')) {
+    if ($degisiklik > 0) {
+        $v['araclar'] = $liste;
+        veri_yaz($v, 'sahibinden eklentisi (' . date('d.m.Y H:i') . ')');
+        $sonuc['yazildi'] = true;
+    }
+    // 2) sonra açıklamalar, kısa süreyle (~25 sn); kalanları eklenti yz_devam ile ister
+    $yz = yz_bekleyenleri_doldur($liste, 25);
+    if ($yz) {
+        $sonuc['rapor']['yapay_zeka'] = $yz;
+        if (array_filter($yz, fn($x) => str_contains($x, 'açıklama yazıldı'))) {
+            $v['araclar'] = $liste;
+            veri_yaz($v, 'sahibinden eklentisi + yapay zekâ (' . date('d.m.Y H:i') . ')');
+            $sonuc['yazildi'] = true;
+        }
+    } elseif (!yz_hazir() && array_filter($liste, fn($a) => ($a['yz_durum'] ?? '') === 'bekliyor')) {
         $sonuc['rapor']['yapay_zeka'] = ['Yapay zekâ anahtarı girilmemiş: yeni ilanların açıklaması boş (panel → Yapay zekâ).'];
     }
-}
-if (!$onizle && $degisiklik > 0) {
-    $v['araclar'] = $liste;
-    veri_yaz($v, 'sahibinden eklentisi (' . date('d.m.Y H:i') . ')');
-    $sonuc['yazildi'] = true;
 }
 $simdi = date('c');
 eklenti_durum_yaz($ek + ['son_basari' => $simdi, 'okunan' => count($gelen), 'son_uyari' => $uyari, 'son_uyari_zaman' => $uyari ? $simdi : '']);

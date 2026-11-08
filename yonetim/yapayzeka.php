@@ -32,7 +32,7 @@ if ($post) {
             if ($a[$alan] === '') { $sonuc[] = "$ad: anahtar girilmemiş"; continue; }
             foreach (yz_modeller($a[$mk]) as $model) {
                 $t0 = microtime(true);
-                try { $j = yz_json($fn($istem, $a, 30, $model)); $sonuc[] = "$ad $model: çalışıyor ✓ (" . round(microtime(true) - $t0, 1) . ' sn)' . (!empty($j['ok']) ? '' : ' – cevap beklenenden farklı'); }
+                try { $j = yz_json($fn($istem, $a, 12, $model)); $sonuc[] = "$ad $model: çalışıyor ✓ (" . round(microtime(true) - $t0, 1) . ' sn)' . (!empty($j['ok']) ? '' : ' – cevap beklenenden farklı'); }
                 catch (Throwable $e) {
                     $m = $e->getMessage(); $sonuc[] = "$ad $model: HATA – " . mb_substr($m, 0, 120);
                     if ($ad === 'NVIDIA' && preg_match('/HTTP (404|410)/', $m)) {
@@ -47,7 +47,7 @@ if ($post) {
     if ($s === 'yaz') {
         $v = veri_oku();
         $ids = isset($_POST['id']) ? [preg_replace('/\D/', '', (string)$_POST['id'])] : null;
-        $rapor = yz_bekleyenleri_doldur($v['araclar'], 100, $ids);
+        $rapor = yz_bekleyenleri_doldur($v['araclar'], 40, $ids);   // Hostinger ~60 sn sonra keser
         if (!$rapor) { git('yapayzeka.php', $ids ? 'Bu ilanın sahibinden açıklaması sunucuda yok (eklenti bir kez çalışınca gelir).' : 'Açıklama bekleyen araç yok.', true); }
         veri_yaz($v, 'yapay zekâ açıklaması (panel)');
         git('yapayzeka.php', implode(' · ', $rapor));
@@ -97,7 +97,7 @@ Yapay zekâ çalışmazsa ilan yine eklenir, açıklaması sonra yazılır.</p>
 <section class="y-kart">
   <h2>Araçlar</h2>
   <form method="post" action="yapayzeka.php?s=yaz"><?= csrf_alan() ?><button class="y-btn">Bekleyenlerin açıklamasını şimdi yaz</button>
-    <small>Biri yaklaşık 5–20 saniye sürer.</small></form>
+    <small>Bir basışta ~40 saniyede yazılabilenler yazılır; kalan varsa tekrar basın.</small></form>
   <div class="y-tablo-kap"><table class="y-tablo">
     <tr><th>Araç</th><th>Açıklama (TR)</th><th>Durum</th><th></th></tr>
     <?php foreach ($v['araclar'] as $x): if (($x['durum'] ?? '') === 'satildi') { continue; } ?>

@@ -69,16 +69,19 @@ function yz_nim(string $istem, array $a, int $sure, string $model): string {
 
 /** İstemi sırayla sağlayıcılara gönderir. Dönüş: [metin, sağlayıcı adı]. Hepsi başarısızsa RuntimeException. */
 function yz_sor(string $istem, int $sure = 40): array {
-    $a = yz_ayar(); $hatalar = [];
+    // $sure: TÜM denemeler için toplam süre (sn). Hostinger istekleri ~60 sn'de keser (504); her deneme kalan süreyle sınırlı.
+    $a = yz_ayar(); $hatalar = []; $son = time() + $sure;
     foreach ([['Gemini', 'gemini_anahtar', 'gemini_model', 'yz_gemini'], ['NVIDIA', 'nim_anahtar', 'nim_model', 'yz_nim']] as [$ad, $ak, $mk, $fn]) {
         if ($a[$ak] === '') { continue; }
         foreach (yz_modeller($a[$mk]) as $model) {
             for ($deneme = 1; $deneme <= 2; $deneme++) {
-                try { return [$fn($istem, $a, $sure, $model), "$ad $model"]; }
+                $kalan = $son - time();
+                if ($kalan < 6) { $hatalar[] = 'süre yetmedi'; break 3; }
+                try { return [$fn($istem, $a, min(30, $kalan), $model), "$ad $model"]; }
                 catch (Throwable $e) {
                     $m = $e->getMessage();
                     // 503 / 500 (yoğunluk) → kısa bekleyip bir kez daha; yetki hatası → bu sağlayıcının diğer modellerini deneme
-                    if ($deneme === 1 && preg_match('/HTTP 50[023]/', $m)) { sleep(2); continue; }
+                    if ($deneme === 1 && preg_match('/HTTP 50[023]/', $m) && $son - time() > 12) { sleep(2); continue; }
                     $hatalar[] = "$ad $model: $m";
                     if (preg_match('/HTTP 40[13]/', $m)) { continue 3; }
                     continue 2;
@@ -179,16 +182,16 @@ function yz_ham_oku(string $id): string {
 function yz_bekleyenleri_doldur(array &$liste, int $sure_siniri = 60, ?array $yalniz = null): array {
     $rapor = [];
     if (!yz_hazir()) { return $rapor; }
-    $bas = time();
+    $son = time() + $sure_siniri;
     foreach ($liste as $i => $a) {
         $id = (string)$a['id'];
         if ($yalniz !== null ? !in_array($id, $yalniz, true) : (($a['yz_durum'] ?? '') !== 'bekliyor')) { continue; }
-        if (time() - $bas > $sure_siniri) { $rapor[] = 'süre doldu, kalanlar bir sonraki çalışmada yazılacak'; break; }
+        if ($son - time() < 10) { $rapor[] = 'süre doldu, kalanlar bir sonraki çalışmada yazılacak'; break; }
         $ham = yz_ham_oku($id);
         if ($ham === '') { $liste[$i]['yz_durum'] = 'ham_yok'; continue; }
         $ad = trim(($a['marka'] ?? '') . ' ' . ($a['seri'] ?? '') . ' ' . ($a['yil'] ?? ''));
         try {
-            $y = yz_ilan_yaz($a, $ham, max(15, min(40, $sure_siniri - (time() - $bas))));
+            $y = yz_ilan_yaz($a, $ham, $son - time());
             $liste[$i]['aciklama'] = $y['aciklama'];
             $liste[$i]['baslik'] = $y['baslik'];
             $liste[$i]['yz_durum'] = 'tamam';
