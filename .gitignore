@@ -6,6 +6,7 @@ veri/teklifler/
 veri/siparisler/
 veri/veritabani/
 yonetim/guncelle_anahtar.php
+yonetim/yz_anahtar.php
 *.tmp
 veri/katalog.json
 veri/katalog/

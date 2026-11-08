@@ -6,7 +6,7 @@
    Kaynak: GitHub deposu GUNCELLE_DEPO'nun main dalı (olustur.py --yayin çıktısı, yayin/ klasörü).
    Anahtar: düz hali yalnız Cem'in bilgisayarında (GUNCELLEME_ANAHTARI.txt, GitHub'a gitmez); sunucuda yalnız özeti
    yonetim/guncelle_anahtar.php içinde durur (depoda yok, üzerine yazılmaz). Anahtarsız / yanlış anahtarla 404 döner.
-   Hiçbir zaman yazılmayanlar: yonetim/sifre.php, yonetim/guncelle_anahtar.php, veri/ (yukarıdaki istisna dışında). Dosya silmez. */
+   Hiçbir zaman yazılmayanlar: yonetim/sifre.php, yonetim/guncelle_anahtar.php, yonetim/yz_anahtar.php, veri/ (yukarıdaki istisna dışında). Dosya silmez. */
 declare(strict_types=1);
 const GUNCELLE_DEPO = 'cemyurtlak/balkar-otomotiv-yayin';
 const GUNCELLE_DAL  = 'main';
@@ -63,7 +63,7 @@ try {
         if (!$f->isFile()) { continue; }
         $yol = str_replace('\\', '/', substr($f->getPathname(), strlen($kok) + 1));
         if (str_contains($yol, '..') || str_starts_with($yol, '.git/') || str_starts_with($yol, '.github/')) { $atlanan++; continue; }
-        if (in_array($yol, ['yonetim/sifre.php', 'yonetim/guncelle_anahtar.php'], true)) { $atlanan++; continue; }
+        if (in_array($yol, ['yonetim/sifre.php', 'yonetim/guncelle_anahtar.php', 'yonetim/yz_anahtar.php'], true)) { $atlanan++; continue; }
         if (str_starts_with($yol, 'veri/') && !($veri_araclar && in_array($yol, ['veri/araclar.json', 'veri/araclar.js'], true))) { $atlanan++; continue; }
         $hedef = __DIR__ . '/' . $yol;
         if (is_file($hedef) && hash_file('sha256', $hedef) === hash_file('sha256', $f->getPathname())) { $ayni++; continue; }

@@ -164,7 +164,7 @@ function sh_birlestir(array $site, array $gelen): array {
     foreach ($gelen as $a) {
         $id = (string)$a['id']; $gorulen[$id] = true;
         $tramerVar = $a['_tramer_bulundu']; unset($a['_tramer_bulundu']);
-        if (!isset($mevcut[$id])) { $liste[] = $a + ['durum' => 'satista']; $rapor['eklenen'][] = $ad($a) . ' – ' . number_format($a['fiyat'], 0, ',', '.') . ' TL'; continue; }
+        if (!isset($mevcut[$id])) { $liste[] = $a + ['durum' => 'satista', 'yz_durum' => 'bekliyor']; $rapor['eklenen'][] = $ad($a) . ' – ' . number_format($a['fiyat'], 0, ',', '.') . ' TL'; continue; }
         $e = $site[$mevcut[$id]];
         $f = ilan_farklari($e, $a);
         $y = $e;

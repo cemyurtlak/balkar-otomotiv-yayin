@@ -7,6 +7,8 @@ declare(strict_types=1);
 require __DIR__ . '/_ortak.php';
 require __DIR__ . '/_aktar.php';
 require __DIR__ . '/_sahibinden.php';
+require __DIR__ . '/_yapayzeka.php';
+@set_time_limit(150);
 
 header('Cache-Control: no-store');
 header('X-Robots-Tag: noindex');
@@ -55,6 +57,14 @@ $degisiklik = count($rapor['eklenen']) + count($rapor['guncellenen']) + count($r
 @mkdir(YEDEK, 0755, true);
 $sonuc = ['ok' => true, 'onizle' => $onizle, 'okunan' => count($gelen), 'rapor' => $rapor,
           'satista' => count(array_filter($liste, fn($a) => ($a['durum'] ?? 'satista') !== 'satildi')), 'yazildi' => false];
+if (!$onizle) {   // ham açıklamalar yapay zekâ için saklanır; yeni ilanların açıklaması yazılır (en çok ~50 sn)
+    foreach ($R as $id => $ham) { if (is_array($ham)) { yz_ham_kaydet((string)$id, (string)($ham['ac'] ?? '')); } }
+    $yz = yz_bekleyenleri_doldur($liste, 50);
+    if ($yz) { $sonuc['rapor']['yapay_zeka'] = $yz; $degisiklik += count($yz); }
+    elseif (!yz_hazir() && array_filter($liste, fn($a) => ($a['yz_durum'] ?? '') === 'bekliyor')) {
+        $sonuc['rapor']['yapay_zeka'] = ['Yapay zekâ anahtarı girilmemiş: yeni ilanların açıklaması boş (panel → Yapay zekâ).'];
+    }
+}
 if (!$onizle && $degisiklik > 0) {
     $v['araclar'] = $liste;
     veri_yaz($v, 'sahibinden eklentisi (' . date('d.m.Y H:i') . ')');
