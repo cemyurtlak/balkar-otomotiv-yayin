@@ -10,9 +10,11 @@ declare(strict_types=1);
 const YZ_DOSYA = __DIR__ . '/yz_anahtar.php';
 const YZ_AC_KLASOR = YEDEK . '/sahibinden_ac';
 /* Model alanına virgülle birden çok model yazılabilir: sırayla denenir (ilki yoğun/kapalıysa sonraki). */
-const YZ_VARSAYILAN = ['gemini_anahtar' => '', 'gemini_model' => 'gemini-3.8-flash, gemini-3.6-flash, gemini-3.5-flash-lite',
-                       'nim_anahtar' => '', 'nim_model' => 'deepseek-ai/deepseek-v4-flash'];
-const YZ_ESKI_MODEL = ['gemini-3.8-flash' => 'gemini_model', 'deepseek-ai/deepseek-v4-flash-0731' => 'nim_model'];   // eski varsayılanlar → yenisi
+const YZ_VARSAYILAN = ['gemini_anahtar' => '', 'gemini_model' => 'gemini-3.6-flash, gemini-3.8-flash, gemini-3.5-flash-lite',
+                       'nim_anahtar' => '', 'nim_model' => 'deepseek-ai/deepseek-v4.1-flash'];
+// eski varsayılanlar → yenisi (8 Kasım: 3.8-flash çok yoğundu; NVIDIA v4-flash ve -0731 kullanımdan kalktı)
+const YZ_ESKI_MODEL = ['gemini-3.8-flash' => 'gemini_model', 'gemini-3.8-flash, gemini-3.6-flash, gemini-3.5-flash-lite' => 'gemini_model',
+                       'deepseek-ai/deepseek-v4-flash-0731' => 'nim_model', 'deepseek-ai/deepseek-v4-flash' => 'nim_model'];   // eski varsayılanlar → yenisi
 
 function yz_ayar(): array {
     $a = is_file(YZ_DOSYA) ? include YZ_DOSYA : [];
