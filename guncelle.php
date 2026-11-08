@@ -62,7 +62,7 @@ try {
     foreach ($it as $f) {
         if (!$f->isFile()) { continue; }
         $yol = str_replace('\\', '/', substr($f->getPathname(), strlen($kok) + 1));
-        if (str_contains($yol, '..') || str_starts_with($yol, '.git/')) { $atlanan++; continue; }
+        if (str_contains($yol, '..') || str_starts_with($yol, '.git/') || str_starts_with($yol, '.github/')) { $atlanan++; continue; }
         if (in_array($yol, ['yonetim/sifre.php', 'yonetim/guncelle_anahtar.php'], true)) { $atlanan++; continue; }
         if (str_starts_with($yol, 'veri/') && !($veri_araclar && in_array($yol, ['veri/araclar.json', 'veri/araclar.js'], true))) { $atlanan++; continue; }
         $hedef = __DIR__ . '/' . $yol;
