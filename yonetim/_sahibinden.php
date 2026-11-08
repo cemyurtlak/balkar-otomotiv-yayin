@@ -7,7 +7,9 @@
    - Sitede olan ilan: yalnız fiyat, km, fotoğraflar ve ilan adresi sahibinden'den güncellenir; geri kalan her şey
      (marka/model/başlık düzeltmeleri, 4 dilli açıklama, hasar, öne çıkan, servis garantisi) sitedeki hâliyle kalır.
    - Yeni ilan: bütün bilgiler + boya/değişen şeması (4 dil) + açıklamadaki tramer tutarı.
-   - Sahibinden'de artık olmayan ilan: "satıldı" işaretlenir (siteden gizlenir, silinmez). Elle eklenen araçlara dokunulmaz. */
+   - Sahibinden'de artık olmayan ilan: "satıldı" işaretlenir (siteden gizlenir, silinmez; satildi_kaynak=sahibinden).
+     İlan yeniden yayına girerse geri açılır. Panelden elle "satıldı" yapılan araç gizli kalır. Elle eklenen araçlara dokunulmaz.
+   - Panelden tamamen silinen araç sahibinden'de duruyorsa YENİ ilan olarak (ham sahibinden verisiyle) geri eklenir. */
 declare(strict_types=1);
 
 const SH_PARCA = [  // parça sınıfı → [tr, en, ru, de]
@@ -173,8 +175,11 @@ function sh_birlestir(array $site, array $gelen): array {
         foreach (array_keys($f) as $k) { $y[$k] = $a[$k]; }
         if (!isset($e['hasar']) || !is_array($e['hasar'])) { $y['hasar'] = $a['hasar']; }
         elseif ($tramerVar && (int)($e['hasar']['tramer_tl'] ?? 0) !== $a['hasar']['tramer_tl']) { $y['hasar']['tramer_tl'] = $a['hasar']['tramer_tl']; $f['tramer'] = true; }
-        if (($e['durum'] ?? 'satista') === 'satildi') { $rapor['geri_geldi'][] = $ad($a); }
-        $y['durum'] = 'satista';
+        if (($e['durum'] ?? 'satista') === 'satildi') {
+            if (($e['satildi_kaynak'] ?? '') === 'sahibinden') {   // eklenti gizlemişti, ilan yeniden yayında → geri aç
+                $rapor['geri_geldi'][] = $ad($a); $y['durum'] = 'satista'; unset($y['satildi_kaynak']);
+            }   // panelden elle "satıldı" yapıldıysa (ilan sahibinden'de henüz duruyor olsa da) gizli kalır
+        } else { $y['durum'] = 'satista'; }
         unset($f['aciklama'], $f['durum']);
         $liste[$mevcut[$id]] = $y;
         if ($f) {
@@ -190,6 +195,7 @@ function sh_birlestir(array $site, array $gelen): array {
     foreach ($liste as $i => $e) {
         if (isset($gorulen[(string)$e['id']]) || ($e['kaynak'] ?? '') !== 'sahibinden' || ($e['durum'] ?? 'satista') === 'satildi') { continue; }
         $liste[$i]['durum'] = 'satildi';
+        $liste[$i]['satildi_kaynak'] = 'sahibinden';
         $liste[$i]['one_cikan'] = false;
         $rapor['satildi'][] = $ad($e);
     }
