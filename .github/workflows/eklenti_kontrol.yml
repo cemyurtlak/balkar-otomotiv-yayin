@@ -1,0 +1,30 @@
+# Balkar Otomotiv – her sabah sahibinden eklentisinin durumuna bakar (Aşama 57).
+# Sorun varsa (son çalışma hata verdi, 3 gündür başarılı güncelleme yok, eksik okuma şüphesi) iş akışı kırmızı olur
+# ve GitHub, depo sahibine (Cem) e-posta gönderir. Anahtar: GitHub Secret GUNCELLEME_ANAHTARI (guncelle.yml ile aynı).
+name: Eklenti kontrolu
+on:
+  schedule:
+    - cron: "17 6 * * *"   # her gün 09:17 (Türkiye)
+  workflow_dispatch:
+jobs:
+  kontrol:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - name: Eklenti durumunu sor
+        env:
+          ANAHTAR: ${{ secrets.GUNCELLEME_ANAHTARI }}
+        run: |
+          if [ -z "$ANAHTAR" ]; then echo "HATA: GUNCELLEME_ANAHTARI secret'i yok."; exit 1; fi
+          KOD=$(jq -n --arg k "$ANAHTAR" '{k:$k}' | curl -sS -o durum.json -w '%{http_code}' --max-time 60 -A "balkar-github-actions" \
+                -H 'Content-Type: application/json' --data-binary @- "https://balkarotomotiv.com/yonetim/eklenti_durum.php" || echo 000)
+          echo "HTTP $KOD"
+          if [ "$KOD" != "200" ]; then echo "Site cevap vermedi ya da anahtar kabul edilmedi."; exit 1; fi
+          jq -r '.ozet' durum.json
+          jq -r '(.notlar // [])[] | "NOT: " + .' durum.json
+          if [ "$(jq -r '.saglikli' durum.json)" != "true" ]; then
+            echo "::error::Sahibinden eklentisinde sorun var"
+            jq -r '.sorunlar[] | "SORUN: " + .' durum.json
+            exit 1
+          fi
+          echo "Eklenti sağlıklı ✓"
