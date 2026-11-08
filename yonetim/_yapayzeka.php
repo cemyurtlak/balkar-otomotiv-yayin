@@ -9,13 +9,18 @@ declare(strict_types=1);
 
 const YZ_DOSYA = __DIR__ . '/yz_anahtar.php';
 const YZ_AC_KLASOR = YEDEK . '/sahibinden_ac';
-const YZ_VARSAYILAN = ['gemini_anahtar' => '', 'gemini_model' => 'gemini-3.8-flash',
-                       'nim_anahtar' => '', 'nim_model' => 'deepseek-ai/deepseek-v4-flash-0731'];
+/* Model alanına virgülle birden çok model yazılabilir: sırayla denenir (ilki yoğun/kapalıysa sonraki). */
+const YZ_VARSAYILAN = ['gemini_anahtar' => '', 'gemini_model' => 'gemini-3.8-flash, gemini-3.6-flash, gemini-3.5-flash-lite',
+                       'nim_anahtar' => '', 'nim_model' => 'deepseek-ai/deepseek-v4-flash'];
+const YZ_ESKI_MODEL = ['gemini-3.8-flash' => 'gemini_model', 'deepseek-ai/deepseek-v4-flash-0731' => 'nim_model'];   // eski varsayılanlar → yenisi
 
 function yz_ayar(): array {
     $a = is_file(YZ_DOSYA) ? include YZ_DOSYA : [];
-    return array_merge(YZ_VARSAYILAN, is_array($a) ? $a : []);
+    $a = array_merge(YZ_VARSAYILAN, is_array($a) ? $a : []);
+    foreach (YZ_ESKI_MODEL as $eski => $alan) { if (trim($a[$alan]) === $eski) { $a[$alan] = YZ_VARSAYILAN[$alan]; } }
+    return $a;
 }
+function yz_modeller(string $s): array { return array_values(array_filter(array_map('trim', explode(',', $s)))); }
 function yz_ayar_yaz(array $a): void {
     $a = array_intersect_key(array_merge(yz_ayar(), $a), YZ_VARSAYILAN);
     $icerik = "<?php\n/* Yapay zekâ anahtarları – panelden yazılır. GitHub'a koymayın. */\nreturn " . var_export($a, true) . ";\n";
@@ -41,8 +46,8 @@ function yz_post(string $url, array $baslik, array $govde, int $sure): array {
     return is_array($j) ? $j : [];
 }
 
-function yz_gemini(string $istem, array $a, int $sure): string {
-    $j = yz_post('https://generativelanguage.googleapis.com/v1beta/models/' . rawurlencode($a['gemini_model']) . ':generateContent',
+function yz_gemini(string $istem, array $a, int $sure, string $model): string {
+    $j = yz_post('https://generativelanguage.googleapis.com/v1beta/models/' . rawurlencode($model) . ':generateContent',
         ['x-goog-api-key: ' . $a['gemini_anahtar']],
         ['contents' => [['role' => 'user', 'parts' => [['text' => $istem]]]],
          'generationConfig' => ['temperature' => 0.3, 'responseMimeType' => 'application/json', 'maxOutputTokens' => 2048]], $sure);
@@ -51,9 +56,9 @@ function yz_gemini(string $istem, array $a, int $sure): string {
     if ($t === '') { throw new RuntimeException('boş cevap'); }
     return $t;
 }
-function yz_nim(string $istem, array $a, int $sure): string {
+function yz_nim(string $istem, array $a, int $sure, string $model): string {
     $j = yz_post('https://integrate.api.nvidia.com/v1/chat/completions', ['Authorization: Bearer ' . $a['nim_anahtar']],
-        ['model' => $a['nim_model'], 'messages' => [['role' => 'user', 'content' => $istem]], 'temperature' => 0.3,
+        ['model' => $model, 'messages' => [['role' => 'user', 'content' => $istem]], 'temperature' => 0.3,
          'max_tokens' => 2048, 'stream' => false, 'chat_template_kwargs' => ['thinking' => false]], $sure);
     $t = (string)($j['choices'][0]['message']['content'] ?? '');
     if ($t === '') { throw new RuntimeException('boş cevap'); }
@@ -63,9 +68,34 @@ function yz_nim(string $istem, array $a, int $sure): string {
 /** İstemi sırayla sağlayıcılara gönderir. Dönüş: [metin, sağlayıcı adı]. Hepsi başarısızsa RuntimeException. */
 function yz_sor(string $istem, int $sure = 40): array {
     $a = yz_ayar(); $hatalar = [];
-    if ($a['gemini_anahtar'] !== '') { try { return [yz_gemini($istem, $a, $sure), 'Gemini']; } catch (Throwable $e) { $hatalar[] = 'Gemini: ' . $e->getMessage(); } }
-    if ($a['nim_anahtar'] !== '') { try { return [yz_nim($istem, $a, $sure), 'NVIDIA']; } catch (Throwable $e) { $hatalar[] = 'NVIDIA: ' . $e->getMessage(); } }
+    foreach ([['Gemini', 'gemini_anahtar', 'gemini_model', 'yz_gemini'], ['NVIDIA', 'nim_anahtar', 'nim_model', 'yz_nim']] as [$ad, $ak, $mk, $fn]) {
+        if ($a[$ak] === '') { continue; }
+        foreach (yz_modeller($a[$mk]) as $model) {
+            for ($deneme = 1; $deneme <= 2; $deneme++) {
+                try { return [$fn($istem, $a, $sure, $model), "$ad $model"]; }
+                catch (Throwable $e) {
+                    $m = $e->getMessage();
+                    // 503 / 500 (yoğunluk) → kısa bekleyip bir kez daha; yetki hatası → bu sağlayıcının diğer modellerini deneme
+                    if ($deneme === 1 && preg_match('/HTTP 50[023]/', $m)) { sleep(2); continue; }
+                    $hatalar[] = "$ad $model: $m";
+                    if (preg_match('/HTTP 40[13]/', $m)) { continue 3; }
+                    continue 2;
+                }
+            }
+        }
+    }
     throw new RuntimeException($hatalar ? implode(' · ', $hatalar) : 'yapay zekâ anahtarı girilmemiş');
+}
+
+/** NVIDIA'daki modellerden adı $ara içerenleri listeler (panelde model önerisi için). */
+function yz_nim_modelleri(string $anahtar, string $ara = 'deepseek'): array {
+    $ch = curl_init('https://integrate.api.nvidia.com/v1/models');
+    curl_setopt_array($ch, [CURLOPT_RETURNTRANSFER => true, CURLOPT_TIMEOUT => 15, CURLOPT_HTTPHEADER => ['Authorization: Bearer ' . $anahtar]]);
+    $j = json_decode((string)curl_exec($ch), true); curl_close($ch);
+    $l = [];
+    foreach ((array)($j['data'] ?? []) as $m) { $id = (string)($m['id'] ?? ''); if ($id !== '' && stripos($id, $ara) !== false) { $l[] = $id; } }
+    sort($l);
+    return $l;
 }
 
 function yz_json(string $t): array {

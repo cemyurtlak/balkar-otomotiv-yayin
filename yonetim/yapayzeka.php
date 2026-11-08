@@ -20,7 +20,7 @@ if ($post) {
             if (!empty($_POST[$p . '_sil'])) { $yeni[$p . '_anahtar'] = ''; }
             elseif ($k !== '') { $yeni[$p . '_anahtar'] = $k; }
             $m = trim((string)($_POST[$p . '_model'] ?? ''));
-            if ($m !== '' && preg_match('#^[\w.\-/:]{2,100}$#', $m)) { $yeni[$p . '_model'] = $m; }
+            if ($m !== '' && preg_match('#^[\w.\-/:, ]{2,300}$#', $m)) { $yeni[$p . '_model'] = $m; }
         }
         yz_ayar_yaz($yeni);
         git('yapayzeka.php', 'Ayarlar kaydedildi.');
@@ -28,11 +28,19 @@ if ($post) {
     if ($s === 'dene') {
         $a = yz_ayar(); $sonuc = [];
         $istem = 'Yalnız şu JSON\'u döndür: {"ok":true,"selam":"merhaba"}';
-        foreach (['Gemini' => ['gemini_anahtar', 'yz_gemini'], 'NVIDIA' => ['nim_anahtar', 'yz_nim']] as $ad => [$alan, $fn]) {
+        foreach (['Gemini' => ['gemini_anahtar', 'gemini_model', 'yz_gemini'], 'NVIDIA' => ['nim_anahtar', 'nim_model', 'yz_nim']] as $ad => [$alan, $mk, $fn]) {
             if ($a[$alan] === '') { $sonuc[] = "$ad: anahtar girilmemiş"; continue; }
-            $t0 = microtime(true);
-            try { $j = yz_json($fn($istem, $a, 30)); $sonuc[] = "$ad: çalışıyor ✓ (" . round(microtime(true) - $t0, 1) . ' sn)' . (!empty($j['ok']) ? '' : ' – cevap beklenenden farklı'); }
-            catch (Throwable $e) { $sonuc[] = "$ad: HATA – " . $e->getMessage(); }
+            foreach (yz_modeller($a[$mk]) as $model) {
+                $t0 = microtime(true);
+                try { $j = yz_json($fn($istem, $a, 30, $model)); $sonuc[] = "$ad $model: çalışıyor ✓ (" . round(microtime(true) - $t0, 1) . ' sn)' . (!empty($j['ok']) ? '' : ' – cevap beklenenden farklı'); }
+                catch (Throwable $e) {
+                    $m = $e->getMessage(); $sonuc[] = "$ad $model: HATA – " . mb_substr($m, 0, 120);
+                    if ($ad === 'NVIDIA' && preg_match('/HTTP (404|410)/', $m)) {
+                        $l = yz_nim_modelleri($a['nim_anahtar']);
+                        if ($l) { $sonuc[] = 'NVIDIA\'da şu an kullanılabilen DeepSeek modelleri: ' . implode(', ', array_slice($l, 0, 8)); }
+                    }
+                }
+            }
         }
         git('yapayzeka.php', implode(' · ', $sonuc));
     }
@@ -61,11 +69,11 @@ Yapay zekâ çalışmazsa ilan yine eklenir, açıklaması sonra yazılır.</p>
   <form method="post" action="yapayzeka.php?s=kaydet" autocomplete="off"><?= csrf_alan() ?>
     <label>1) Google Gemini API anahtarı – <small><?= $maske($a['gemini_anahtar']) ?></small>
       <input type="password" name="gemini_anahtar" placeholder="AIza… (değiştirmek için yapıştırın, boş bırakırsanız eskisi kalır)"></label>
-    <label>Gemini modeli <input name="gemini_model" value="<?= h($a['gemini_model']) ?>"></label>
+    <label>Gemini modelleri <small>(virgülle; sırayla denenir)</small> <input name="gemini_model" value="<?= h($a['gemini_model']) ?>"></label>
     <?php if ($a['gemini_anahtar'] !== ''): ?><label class="y-onay"><input type="checkbox" name="gemini_sil" value="1"> Gemini anahtarını sil</label><?php endif; ?>
     <label>2) Yedek: NVIDIA NIM API anahtarı – <small><?= $maske($a['nim_anahtar']) ?></small>
       <input type="password" name="nim_anahtar" placeholder="nvapi-… (değiştirmek için yapıştırın, boş bırakırsanız eskisi kalır)"></label>
-    <label>NVIDIA modeli <input name="nim_model" value="<?= h($a['nim_model']) ?>"></label>
+    <label>NVIDIA modelleri <small>(virgülle; sırayla denenir)</small> <input name="nim_model" value="<?= h($a['nim_model']) ?>"></label>
     <?php if ($a['nim_anahtar'] !== ''): ?><label class="y-onay"><input type="checkbox" name="nim_sil" value="1"> NVIDIA anahtarını sil</label><?php endif; ?>
     <p><button class="y-btn">Kaydet</button></p>
   </form>
