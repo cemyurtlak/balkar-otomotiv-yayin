@@ -181,6 +181,8 @@ function sh_birlestir(array $site, array $gelen): array {
             }   // panelden elle "satıldı" yapıldıysa (ilan sahibinden'de henüz duruyor olsa da) gizli kalır
         } else { $y['durum'] = 'satista'; }
         unset($f['aciklama'], $f['durum']);
+        // açıklaması hiç yazılmamış sahibinden ilanı → yapay zekâ sırasına (elle/önceden yazılmış açıklamaya dokunulmaz)
+        if (trim((string)($y['aciklama']['tr'] ?? '')) === '' && !isset($y['yz_durum'])) { $y['yz_durum'] = 'bekliyor'; }
         $liste[$mevcut[$id]] = $y;
         if ($f) {
             $alanlar = [];
