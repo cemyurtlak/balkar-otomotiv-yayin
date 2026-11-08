@@ -1,0 +1,37 @@
+# Balkar Otomotiv – push olunca sunucudaki guncelle.php'yi çağırır (Aşama 53).
+# Anahtar yalnız GitHub Secrets'ta: Settings → Secrets and variables → Actions → GUNCELLEME_ANAHTARI
+# Araç listesi (veri/araclar.json) yalnız commit mesajında [araclar] varsa ya da elle çalıştırmada kutu işaretliyse ezilir.
+name: Siteyi guncelle
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      araclar:
+        description: "Araç listesini de güncelle (panelden eklenenler ezilir!)"
+        type: boolean
+        default: false
+concurrency:
+  group: site-guncelle
+  cancel-in-progress: false
+jobs:
+  guncelle:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Sunucudaki guncelleme sayfasini cagir
+        env:
+          ANAHTAR: ${{ secrets.GUNCELLEME_ANAHTARI }}
+          MESAJ: ${{ github.event.head_commit.message }}
+          ELLE: ${{ inputs.araclar }}
+        run: |
+          if [ -z "$ANAHTAR" ]; then echo "HATA: GUNCELLEME_ANAHTARI secret'i eklenmemis."; exit 1; fi
+          EK=""
+          case "$MESAJ" in *"[araclar]"*) EK="&veri=araclar" ;; esac
+          if [ "$ELLE" = "true" ]; then EK="&veri=araclar"; fi
+          sleep 15   # GitHub zip'inin yeni commit'i görmesi için
+          KOD=$(curl -sS -o cikti.txt -w '%{http_code}' --max-time 150 -A "balkar-github-actions" -G \
+                "https://balkarotomotiv.com/guncelle.php" --data-urlencode "k=$ANAHTAR" --data "t=$(date +%s)$EK" || echo 000)
+          cat cikti.txt || true
+          echo "HTTP $KOD"
+          [ "$KOD" = "200" ] && grep -q "BİTTİ" cikti.txt
