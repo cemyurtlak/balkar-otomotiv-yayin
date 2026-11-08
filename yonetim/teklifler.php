@@ -5,6 +5,8 @@
 declare(strict_types=1);
 require __DIR__ . '/_ortak.php';
 require __DIR__ . '/../teklif/_ayar.php';
+require_once __DIR__ . '/../teklif/_db.php';
+require __DIR__ . '/_kayit_sil.php';
 
 if (sifre_hash() === null || !giris_var()) { git('index.php'); }
 $_SESSION['zaman'] = time();
@@ -62,8 +64,9 @@ if ($post) {
     }
     if ($s === 'sil') {
         if (empty($_POST['onay'])) { git('teklifler.php?no=' . rawurlencode($no), 'Silmek için onay kutusunu işaretleyin.', true); }
-        @unlink($f);
-        git('teklifler.php', "$no numaralı teklif silindi.");
+        $silinen = kayit_tamamen_sil('teklif', $no);
+        if (is_file($f)) { git('teklifler.php?no=' . rawurlencode($no), "$no silinemedi (dosya yazma izni?). Lütfen tekrar deneyin.", true); }
+        git('teklifler.php', "$no numaralı teklif silindi (" . implode(', ', $silinen) . ").");
     }
     git('teklifler.php', 'Bilinmeyen işlem.', true);
 }

@@ -5,6 +5,8 @@
 declare(strict_types=1);
 require __DIR__ . '/_ortak.php';
 require_once __DIR__ . '/../teklif/_db.php';
+require_once __DIR__ . '/../teklif/_ayar.php';
+require __DIR__ . '/_kayit_sil.php';
 
 if (sifre_hash() === null || !giris_var()) { git('index.php'); }
 $_SESSION['zaman'] = time();
@@ -73,8 +75,11 @@ if ($post) {
     }
     if ($s === 'sil') {
         if (empty($_POST['onay'])) { git('talepler.php?id=' . $id, 'Silmek için onay kutusunu işaretleyin.', true); }
+        $q = $pdo->prepare('SELECT tur, no FROM talepler WHERE id = ?'); $q->execute([$id]); $r = $q->fetch(PDO::FETCH_ASSOC) ?: [];
+        $silinen = [];
+        if (in_array($r['tur'] ?? '', ['teklif', 'siparis'], true) && ($r['no'] ?? '') !== '') { $silinen = kayit_tamamen_sil($r['tur'], $r['no']); }
         $pdo->prepare('DELETE FROM talepler WHERE id = ?')->execute([$id]);
-        git('talepler.php', 'Kayıt silindi. (Aracını sat / ön sipariş ise kendi sayfasındaki kayıt durur.)');
+        git('talepler.php', 'Kayıt silindi' . ($silinen ? ' (' . implode(', ', array_unique($silinen)) . ')' : '') . '.');
     }
     git('talepler.php', 'Bilinmeyen işlem.', true);
 }
