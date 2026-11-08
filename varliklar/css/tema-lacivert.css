@@ -1,0 +1,174 @@
+/* TEMA 5 — "Lacivert & Altın": siyah, altın, krem, lacivert. Her rengin yeri belli:
+   SİYAH  = çerçeve (üst menü, alt bilgi, telefondaki alt çubuk)
+   LACİVERT = büyük vurgu yüzeyleri (kahraman, "nasıl yürür" bölümü, kredi bandı) + fiyatlar ve bağlantılar
+   KREM   = sayfa zemini ve kartlar
+   ALTIN  = yalnızca vurgu (düğmeler, simgeler, ince çizgiler, yıldızlar, rozetler) — geniş alanlarda kullanılmaz */
+:root {
+  --zemin: #f6f0e4;
+  --zemin-2: #eee5d3;
+  --yuzey: #fffaf1;
+  --cizgi: #e0d5bf;
+  --cizgi-guclu: #cdbd9c;
+  --metin: #141821;
+  --soluk: #6a6558;
+  --ikincil: #3d3f45;
+  --altin: #c9a24e;
+  --altin-acik: #dcb965;
+  --altin-koyu: #8f6c25;
+  --altin-metin: #1d3a66;          /* açık zeminde bağlantı/fiyat: lacivert */
+  --lacivert: #142a4c;
+  --lacivert-2: #1d3a66;
+  --varak: linear-gradient(100deg, #a07a2e 0%, #ecd394 35%, #b8892f 65%, #f3dfa6 100%);
+  --varak-baslik: linear-gradient(100deg, #142a4c 0%, #1d3a66 100%);
+  --kahraman-zemin: linear-gradient(160deg, #0f1f3a 0%, #142a4c 55%, #1b3762 100%);
+  --kredi-zemin: var(--lacivert-gecis);
+  /* geçişler: lacivert → siyah (siyah ağırlıklı), krem ↔ altın */
+  --lacivert-gecis: linear-gradient(135deg, #1d3a66 0%, #142a4c 18%, #0c1729 40%, #111111 65%, #0a0a0a 100%);
+  --krem-altin: linear-gradient(180deg, #f6f0e4 0%, #eedcb0 40%, #d8b25f 100%);
+  --altin-krem: linear-gradient(180deg, #d8b25f 0%, #eedcb0 60%, #f6f0e4 100%);
+  --foto-zemin: #e7dfcf;
+  --golge: 0 12px 28px -20px #142a4c55;
+  --golge-buyuk: 0 34px 70px -30px #0f1f3a8c;
+}
+
+/* siyah çerçeve */
+.ust, .alt, .mobil-bar {
+  --zemin: #121212; --zemin-2: #1a1a1a; --yuzey: #222;
+  --cizgi: #ffffff1a; --cizgi-guclu: #ffffff33;
+  --metin: #f6f0e4; --soluk: #b3ab9b; --ikincil: #ddd5c5;
+  --altin-metin: #dcb965; --varak-baslik: var(--varak);
+  color: var(--metin);
+}
+.ust { background: #121212; border-bottom: 1px solid #c9a24e66; }
+.alt { background: #121212; border-top: 3px solid var(--altin); }
+.mobil-bar { background: #121212f2; }
+@media (min-width: 900px) { .mobil-bar { background: none; } }
+
+/* lacivert yüzeyler */
+.kahraman, .bolum-koyu, .kredi-bant, .koyu-bolge {
+  --zemin: #142a4c; --zemin-2: #1a3460; --yuzey: #1d3a66;
+  --cizgi: #ffffff1f; --cizgi-guclu: #ffffff38;
+  --metin: #f6f0e4; --soluk: #b9c3d6; --ikincil: #dde3ee;
+  --altin-metin: #dcb965; --varak-baslik: var(--varak);
+  color: var(--metin);
+}
+
+/* kahraman: lacivert, krem başlık, altın ince çizgi */
+.kahraman { background: var(--lacivert-gecis); }
+.kahraman-baslik { animation: none; background: none; color: #f6f0e4; -webkit-text-fill-color: #f6f0e4; }
+.kahraman-baslik::after { content: ""; display: block; width: 88px; height: 3px; margin-top: 22px; border-radius: 3px; background: var(--varak); }
+.kahraman-ust svg { color: var(--altin); }
+.kahraman .dugme-cizgi { border-color: #f6f0e466; color: #f6f0e4; }
+.kahraman .dugme-cizgi:hover { border-color: var(--altin); color: #f6f0e4; }
+.one-cikan { border: 1px solid #c9a24e59; box-shadow: 0 40px 80px -30px #000b; }
+.one-cikan-etiket { background: #121212cc; border-color: var(--altin); color: #ecd394; }
+.one-cikan-fiyat { color: #ecd394; }
+
+/* hızlı arama kartı: krem, lacivert zeminin üstünde */
+.hizli-ic {
+  --zemin-2: #f6f0e4; --yuzey: #fffaf1; --cizgi: #e0d5bf; --cizgi-guclu: #cdbd9c;
+  --metin: #141821; --soluk: #6a6558; color: var(--metin);
+  background: #fffaf1; border: 0; border-top: 3px solid var(--altin); box-shadow: 0 30px 60px -28px #000c;
+}
+.hizli { padding-bottom: 36px; }
+
+/* düğmeler: altın dolgu, siyah yazı */
+.dugme-altin { background: var(--altin); color: #121212; }
+.dugme-altin:hover { background: var(--altin-acik); color: #121212; }
+.dugme-cizgi { border-color: var(--lacivert); color: var(--lacivert); }
+.dugme-cizgi:hover { border-color: var(--altin); color: var(--lacivert); }
+.ust .dugme-cizgi, .alt .dugme-cizgi { border-color: var(--cizgi-guclu); color: var(--metin); }
+
+/* krem zemindeki öğeler */
+.guven { border-color: var(--cizgi); }
+.guven-oge { background: var(--yuzey); }
+.guven-oge b { color: var(--lacivert); }
+.guven-oge svg { color: var(--altin-koyu); }
+.arac-kart { border-color: var(--cizgi); }
+.arac-kart:hover { border-color: var(--altin); }
+.arac-fiyat { color: var(--lacivert); }
+.arac-ozellik svg { color: var(--altin-koyu); }
+.bolum-baslik { color: var(--metin); }
+
+/* "nasıl yürür": lacivert bölüm, altın simgeler */
+.bolum-koyu { background: var(--lacivert-gecis); border-block: 0; }
+.bolum-koyu .ilke svg { color: var(--altin); }
+
+/* adımlar: lacivert numara, altın rakam */
+.adim-no { background: var(--lacivert); color: #ecd394; box-shadow: inset 0 0 0 1px #c9a24e80; }
+.adimlar li { border-left: 3px solid var(--altin); }
+
+/* yorumlar */
+.yorum-bolum { background: var(--zemin-2); border-block: 0; }
+.yildizlar { color: var(--altin); }
+.yorum-ad { color: var(--lacivert); }
+
+/* kredi bandı: lacivert, altın çerçeve */
+.kredi-bant { background: var(--lacivert-gecis); border: 1px solid #c9a24e80; box-shadow: var(--golge-buyuk); }
+
+/* yazılar ve iletişim */
+.yazi-sure { color: var(--altin-koyu); }
+.yazi-oku { color: var(--lacivert); }
+.bilgi-liste dt svg, .harita-kapak > svg { color: var(--altin-koyu); }
+.alt-baslik { color: var(--altin); }
+.alt-son { color: #8f887a; }
+.kahraman + section { margin-top: 28px; }
+
+/* krem ↔ altın geçişli bölümler (anasayfa). Aşama 41: sıra numarası yerine sınıfla (gecis-ka = krem→altın, gecis-ak = altın→krem);
+   araya yeni bölüm girince renkler kaymasın diye. Sıra: [güven, ödeme reklam bandı: düz], vitrin ka, ön sipariş bandı ak, [lacivert "nasıl yürür"], adımlar ka, yorumlar ak, rehber ka, iletişim ak (Aşama 42).
+   Geçişler düz dikey (180°): border-image alanı ekranın 3 katı genişlikte olduğundan açılı geçiş yatay kayar.
+   Yön sırayla değişir: bir bölüm altınla bitiyorsa sonraki altınla başlar, sınırlarda kopma olmaz. */
+.sayfa-anasayfa #icerik > section.gecis-ka {
+  background: none; border-image: var(--krem-altin) fill 0 / / 0 100vw;
+}
+.sayfa-anasayfa #icerik > section.gecis-ak {
+  background: none; border-image: var(--altin-krem) fill 0 / / 0 100vw;
+}
+/* kredi bandı bölümü: gereksiz üst boşluk kaldırıldı, alta da eşit boşluk */
+.kredi-dis { padding-block: 0; }
+/* yetki belgesi satırının üstündeki boşluk azaltıldı */
+.kahraman { padding-top: 12px; }
+
+/* ---------- alt sayfalar ---------- */
+/* sayfa başlıkları (Araçlar, Aracını sat, Kredi, Hizmetler, Rehber, İletişim, KVKK, Hakkımızda):
+   anasayfa kahramanı gibi tam genişlik lacivert → siyah bant, krem başlık, altın alt çizgi */
+.sayfa-bas, .hk-ust {
+  position: relative; z-index: 0; margin-bottom: clamp(24px, 3vw, 40px);
+  --metin: #f6f0e4; --soluk: #b9c3d6; --ikincil: #dde3ee; --altin-metin: #dcb965;
+  --cizgi: #ffffff1f; --cizgi-guclu: #ffffff38;
+  color: var(--metin);
+}
+.sayfa-bas::before, .hk-ust::before {
+  content: ""; position: absolute; z-index: -1; top: 0; bottom: 0; left: calc(50% - 50vw); right: calc(50% - 50vw);
+  background: var(--lacivert-gecis);
+}
+.sayfa-bas { padding-top: clamp(20px, 2.5vw, 32px); padding-bottom: clamp(24px, 3vw, 36px); }
+.hk-ust { padding-top: clamp(20px, 2.5vw, 32px); padding-bottom: clamp(24px, 3vw, 40px); }
+.sayfa-baslik { background: none; color: var(--lacivert); -webkit-text-fill-color: currentColor; }   /* krem zeminde (makale, KVKK) lacivert */
+.sayfa-bas .sayfa-baslik, .hk-ust .sayfa-baslik { color: #f6f0e4; }                                   /* koyu bantta krem */
+.makale .giris { color: var(--ikincil); }
+.sayfa-baslik::after { content: ""; display: block; width: 72px; height: 3px; margin-top: 16px; border-radius: 3px; background: var(--varak); }
+.hk-ust h1 { color: #f6f0e4; }
+.hk-ust .giris { color: #e6ebf3; }
+.hk-ust p:not(.giris) { color: #c9d1e0; }
+.hk-ust a { color: #dcb965; }
+
+/* araç detayı */
+.geri:hover { color: var(--lacivert); }
+.detay-fiyat { background: none; color: var(--lacivert); -webkit-text-fill-color: var(--lacivert); }
+.detay-ozet { background: var(--yuzey); border-top: 3px solid var(--altin); box-shadow: var(--golge); }
+.detay-kategori { color: var(--altin-koyu); }
+.galeri-kucuk button[aria-current="true"], .galeri-kucuk button.secili { border-color: var(--altin); }
+
+/* kredi sonuç paneli: lacivert → siyah, yazılar açık (önceden döküm değerleri koyu zeminde okunmuyordu) */
+.kredi-sonuc {
+  --zemin: #142a4c; --zemin-2: #1a3460; --yuzey: #1d3a66;
+  --cizgi: #ffffff1f; --cizgi-guclu: #ffffff38;
+  --metin: #f6f0e4; --soluk: #b9c3d6; --ikincil: #dde3ee; --altin-metin: #dcb965;
+  color: var(--metin); background: var(--lacivert-gecis); border-color: #c9a24e80;
+}
+.kredi-sonuc dd, .kredi-sonuc b, .kredi-sonuc strong { color: #f6f0e4; }
+
+/* hakkımızda: iki koyu bant art arda — aradaki krem şerit yerine ince altın çizgi */
+.hk-ust { margin-bottom: 0; }
+.hk-ust + .bolum-koyu { border-top: 1px solid #c9a24e59; }

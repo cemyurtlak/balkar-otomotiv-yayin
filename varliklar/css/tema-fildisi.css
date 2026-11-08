@@ -1,0 +1,24 @@
+/* TEMA 2 — "Fildişi": sıcak krem zemin, kömür yazı, altın vurgular. Alt bilgi logo siyahında. */
+:root {
+  --zemin: #f7f2e8;
+  --zemin-2: #efe6d5;
+  --yuzey: #fffdf8;
+  --cizgi: #ddd0b6;
+  --cizgi-guclu: #cbbb98;
+  --metin: #1e1a14;
+  --soluk: #6f6655;
+  --ikincil: #4b4436;
+  --altin: #c99f4a;
+  --altin-acik: #b38a37;
+  --altin-koyu: #8c6a26;
+  --altin-metin: #8a6420;
+  --varak-baslik: linear-gradient(100deg, #5a3f10 0%, #9c7630 30%, #6e4f17 55%, #a8802f 80%, #5a3f10 100%);
+  --kahraman-zemin: radial-gradient(60% 70% at 88% 18%, #e8d3a259 0%, transparent 70%), radial-gradient(45% 55% at 0% 100%, #ecdcb84d 0%, transparent 70%);
+  --kredi-zemin: linear-gradient(120deg, #f1e2bf 0%, var(--yuzey) 65%);
+  --foto-zemin: #e6dccb;
+  --golge: 0 10px 28px -18px #5a3f1040;
+  --golge-buyuk: 0 30px 60px -28px #5a3f1059;
+}
+.bolum-koyu, .yorum-bolum { background: var(--zemin-2); }
+.guven-oge { background: var(--yuzey); }
+.dugme-altin { box-shadow: 0 8px 20px -10px #8c6a2680; }

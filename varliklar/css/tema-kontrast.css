@@ -1,0 +1,49 @@
+/* TEMA 3 — "Siyah & Beyaz": beyaz zemin, logo siyahında üst menü, ilkeler bölümü ve alt bilgi; altın vurgular.
+   Kahramanda sağda siyah panel, öne çıkan araç bu panelin üstünde durur. */
+:root {
+  --zemin: #ffffff;
+  --zemin-2: #f4f3f0;
+  --yuzey: #ffffff;
+  --cizgi: #e4e0d8;
+  --cizgi-guclu: #cfc9bd;
+  --metin: #14120f;
+  --soluk: #6b6457;
+  --ikincil: #46413a;
+  --altin: #cfa651;
+  --altin-acik: #b68d3c;
+  --altin-koyu: #8c6a26;
+  --altin-metin: #93701f;
+  --varak-baslik: none;
+  --kahraman-zemin: #ffffff;
+  --kredi-zemin: linear-gradient(120deg, #f6ecd4 0%, #fff 70%);
+  --foto-zemin: #ebe8e2;
+  --golge: 0 8px 24px -16px #14120f33;
+  --golge-buyuk: 0 30px 60px -26px #14120f59;
+}
+
+/* üst menü ve ilkeler bölümü logo siyahında */
+.ust, .bolum-koyu {
+  --zemin: #14120f; --zemin-2: #1b1915; --yuzey: #221f1a;
+  --cizgi: #36302599; --cizgi-guclu: #4a4233;
+  --metin: #f2ede3; --soluk: #a9a191; --ikincil: #cfc7b8;
+  --altin-metin: #ecd394; --varak-baslik: var(--varak);
+  color: var(--metin);
+}
+.ust { background: #14120f; border-bottom: 2px solid var(--altin); }
+.bolum-koyu { background: #14120f; }
+
+/* kahraman: siyah düz başlık + altın alt çizgi, sağda siyah panel */
+.kahraman-baslik { color: var(--metin); background: none; -webkit-text-fill-color: currentColor; animation: none; }
+.kahraman-baslik::after { content: ""; display: block; width: 96px; height: 4px; margin-top: 22px; border-radius: 4px; background: var(--varak); }
+.sayfa-baslik { color: var(--metin); background: none; -webkit-text-fill-color: currentColor; }
+@media (min-width: 960px) {
+  .kahraman::before { content: ""; position: absolute; top: 0; right: 0; width: 38%; height: 78%; background: #14120f; border-bottom-left-radius: 48px; z-index: 0; }}
+.kahraman-ust svg { color: var(--altin-koyu); }
+
+.guven { border-color: var(--cizgi); }
+.guven-oge { background: var(--zemin-2); }
+.guven-oge b { color: var(--altin-metin); }
+.yorum-bolum { background: var(--zemin-2); }
+.adim-no { color: #14120f; }
+.dugme-cizgi { border-color: #14120f; }
+.ust .dugme-cizgi, .bolum-koyu .dugme-cizgi { border-color: var(--cizgi-guclu); }

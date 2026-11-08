@@ -1,0 +1,84 @@
+/* TEMA 3 — "Akdeniz": logodan bağımsız palet. Derin petrol mavisi (deniz) + mercan (gün batımı) + açık kum zemin.
+   Üst menü ve kahraman tek parça petrol paneli, altta kavisli bitiş; sayfanın geri kalanı açık. */
+:root {
+  --zemin: #f5f6f3;
+  --zemin-2: #eaf1ef;
+  --yuzey: #ffffff;
+  --cizgi: #dbe3e0;
+  --cizgi-guclu: #bfcdc9;
+  --metin: #0f2526;
+  --soluk: #5c6f6e;
+  --ikincil: #3b4f4f;
+  --altin: #ff6a45;          /* dolgu: düğmeler, rozetler */
+  --altin-acik: #ff8a6a;
+  --altin-koyu: #c23d22;
+  --altin-metin: #c23d22;    /* açık zeminde mercan yazı */
+  --varak: linear-gradient(100deg, #ff6a45 0%, #ffa25c 100%);
+  --varak-baslik: linear-gradient(100deg, #0d4547 0%, #13807f 100%);
+  --kahraman-zemin: radial-gradient(55% 70% at 92% 10%, #ff6a4533 0%, transparent 65%), radial-gradient(60% 80% at 0% 100%, #1aa3a033 0%, transparent 70%), linear-gradient(160deg, #0b3436 0%, #0f4b4d 60%, #13605f 100%);
+  --kredi-zemin: linear-gradient(120deg, #ffe3d9 0%, #fff 70%);
+  --foto-zemin: #dfe7e5;
+  --golge: 0 10px 26px -18px #0b343659;
+  --golge-buyuk: 0 34px 70px -30px #0b343680;
+  --deniz: #13807f;
+}
+
+/* koyu bölgeler: petrol mavisi */
+.ust, .kahraman, .alt, .mobil-bar, .koyu-bolge {
+  --zemin: #0b3436; --zemin-2: #0f4244; --yuzey: #134b4d;
+  --cizgi: #ffffff1f; --cizgi-guclu: #ffffff38;
+  --metin: #ffffff; --soluk: #a9c7c5; --ikincil: #d6e7e5;
+  --altin: #ff6a45; --altin-acik: #ff8a6a; --altin-metin: #ffb39c;
+  --varak-baslik: linear-gradient(100deg, #ffffff 0%, #ffffff 55%, #ffc2a8 100%);
+  color: var(--metin);
+}
+.ust { background: #0b3436; border-bottom: 0; }
+.alt { background: #082729; }
+
+/* kahraman: tam genişlik petrol paneli, alt kenarı kavisli */
+.kahraman { background: var(--kahraman-zemin); border-radius: 0 0 clamp(28px, 6vw, 72px) clamp(28px, 6vw, 72px); padding-bottom: clamp(28px, 4vw, 48px); }
+.kahraman-baslik { animation: none; background: none; color: #fff; -webkit-text-fill-color: #fff; }
+.kahraman-ust svg { color: #ff8a6a; }
+.kahraman-alt { color: #d6e7e5; }
+.kahraman-cizgi stop:nth-child(1) { stop-color: #ff6a45; }
+.kahraman-cizgi stop:nth-child(2) { stop-color: #ffb39c; }
+.kahraman-cizgi stop:nth-child(3) { stop-color: #1aa3a0; }
+.kahraman-cizgi stop:nth-child(4) { stop-color: #ff8a6a; }
+.kahraman .dugme-cizgi { border-color: #ffffff59; }
+.kahraman .dugme-cizgi:hover { border-color: #ff8a6a; color: #fff; }
+.one-cikan { border: 0; box-shadow: 0 40px 80px -30px #000a; }
+.one-cikan-etiket { background: #ff6a45; border-color: #ff6a45; color: #1a0b06; }
+.one-cikan-fiyat { color: #ffb39c; }
+
+/* hızlı arama kartı kahramanın içinde ama açık */
+.hizli-ic {
+  --zemin-2: #f5f6f3; --yuzey: #ffffff; --cizgi: #dbe3e0; --cizgi-guclu: #bfcdc9;
+  --metin: #0f2526; --soluk: #5c6f6e; color: var(--metin);
+  background: #fff; box-shadow: 0 30px 60px -28px #000c; border: 0;
+}
+.hizli { padding-bottom: 0; }
+.kahraman + section { margin-top: 32px; }
+
+/* mercan ok simgeli seçim kutuları */
+.alan select { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='none' stroke='%23ff6a45' stroke-width='2' d='m6 9 6 6 6-6'/%3E%3C/svg%3E"); }
+.alan input:focus, .alan select:focus, .alan textarea:focus { box-shadow: 0 0 0 3px #ff6a4533; }
+
+/* simgeler deniz mavisi, yazılar mercan */
+.guven-oge svg, .ilke svg, .arac-ozellik svg, .bilgi-liste dt svg, .harita-kapak > svg, .yan-bilgi h2 svg { color: var(--deniz); }
+.guven-oge { background: var(--yuzey); }
+.guven-oge b { color: var(--deniz); }
+.yildizlar { color: #ff6a45; }
+.bolum-koyu { background: var(--zemin-2); border-block: 0; }
+.yorum-bolum { background: linear-gradient(180deg, #eaf1ef 0%, #f5f6f3 100%); border-block: 0; }
+.arac-kart { border: 0; }
+.arac-kart:hover { box-shadow: 0 18px 40px -20px #0b343680; }
+.arac-yeni { color: #1a0b06; }
+.dugme-altin { color: #1a0b06; box-shadow: 0 10px 24px -12px #ff6a45b3; }
+.dugme-altin:hover { color: #1a0b06; }
+.dugme-cizgi { border-color: #0f2526; }
+.ust .dugme-cizgi, .alt .dugme-cizgi { border-color: var(--cizgi-guclu); }
+.adim-no, .ekip-bas { color: #1a0b06; }
+.kredi-bant { border: 0; box-shadow: var(--golge); }
+.alt-son { color: #7fa3a1; }
+.mobil-bar { background: #082729f2; }
+@media (min-width: 900px) { .mobil-bar { background: none; } }

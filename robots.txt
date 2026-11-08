@@ -1,0 +1,3 @@
+User-agent: *
+Disallow: /yonetim/
+Sitemap: https://balkarotomotiv.com/sitemap.xml

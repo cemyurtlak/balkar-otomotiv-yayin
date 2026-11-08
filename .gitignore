@@ -1,0 +1,11 @@
+yonetim/sifre.php
+veri/yedek/
+veri/foto/
+veri/teklif/
+veri/teklifler/
+veri/siparisler/
+veri/veritabani/
+yonetim/guncelle_anahtar.php
+*.tmp
+veri/katalog.json
+veri/katalog/

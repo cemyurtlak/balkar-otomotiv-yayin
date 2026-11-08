@@ -1,0 +1,70 @@
+/* Balkar Otomotiv — AÇIK TEMA ORTAK KATMANI
+   site.css'in üstüne yüklenir. Renk değerleri tema-fildisi.css / tema-kontrast.css içinde.
+   Logo renkleri (siyah + altın) korunur: alt bilgi ve mobil çubuk her açık temada koyu kalır. */
+
+:root { color-scheme: light; }
+body { background: var(--zemin); color: var(--metin); }
+a { color: var(--altin-metin); }
+a:hover { color: var(--metin); }
+:focus-visible { outline-color: var(--altin-metin); }
+
+/* koyu kalan bölümler: logo siyahı */
+.koyu-bolge, .alt, .mobil-bar {
+  --zemin: #14120f; --zemin-2: #1b1915; --yuzey: #221f1a;
+  --cizgi: #36302599; --cizgi-guclu: #4a4233;
+  --metin: #f2ede3; --soluk: #a9a191; --ikincil: #cfc7b8;
+  --altin: #cfa651; --altin-acik: #ecd394; --altin-metin: #ecd394;
+  --varak-baslik: var(--varak);
+  color: var(--metin);
+}
+.alt { background: #14120f; }
+
+/* ikincil metinler (site.css'te koyu tema için sabit açık renkliydi) */
+.kahraman-alt, .guven-oge, .arac-ozellik, .ilke p, .adimlar p, .yorum blockquote, .yazi-kart p,
+.onay, .yan-bilgi p, .tik-liste, .hizmet p, .giris, .hk-metin p:not(.giris), .deger p,
+.makale p, .makale .giris, .detay-aciklama [data-alan="aciklama"] { color: var(--ikincil); }
+
+/* altın yazılar açık zeminde okunur tonda */
+.menu a:hover, .menu a[aria-current="page"], .dil-liste a[aria-current="true"],
+.arac-fiyat, .guven-oge b, .yorum-ad, .yazi-oku, .form-uyari, .dugme-cizgi:hover, .yuvarlak:hover { color: var(--altin-metin); }
+.kahraman-baslik, .sayfa-baslik, .marka-yazi b { background-image: var(--varak-baslik); }
+
+/* menü */
+.ust { background: color-mix(in srgb, var(--zemin) 92%, transparent); }
+.dil-liste { box-shadow: 0 18px 40px -12px #3a2d1233; }
+.dil-liste a:hover { background: #0000000a; }
+
+/* kahraman */
+.kahraman { background: var(--kahraman-zemin); }
+.one-cikan { box-shadow: var(--golge-buyuk); }
+
+/* fotoğraf üstündeki yazılar her temada açık renk kalır */
+.one-cikan-bilgi { --metin: #fff; --soluk: #e6dccb; color: #fff; }
+.one-cikan-fiyat { color: #ecd394; }
+.one-cikan-etiket { color: #ecd394; }
+.arac-yil, .galeri-ok, .galeri-sayac { color: #fff; }
+.foto, .galeri-ana, .galeri-kucuk button { background: var(--foto-zemin); }
+.foto-yok { color: var(--soluk); }
+
+/* kartlar ve kutular */
+.hizli-ic { background: var(--yuzey); box-shadow: var(--golge-buyuk); }
+.arac-kart { background: var(--yuzey); box-shadow: var(--golge); }
+.arac-kart:hover { border-color: var(--altin); }
+.adimlar li, .yazi-kart, .kart-form { background: var(--yuzey); box-shadow: var(--golge); }
+.yorum { background: var(--yuzey); box-shadow: var(--golge); }
+.kredi-bant { background: var(--kredi-zemin); }
+.kredi-sonuc { background: var(--kredi-zemin); }
+
+/* form alanları */
+.alan input, .alan select, .alan textarea { background-color: var(--yuzey); }
+.alan input::placeholder, .alan textarea::placeholder { color: #9a917f; }
+.alan input:focus, .alan select:focus, .alan textarea:focus { box-shadow: 0 0 0 3px #cfa65140; }
+.koyu-bolge .alan input, .koyu-bolge .alan select { background-color: var(--zemin-2); }
+
+/* harita */
+.harita { background:
+  repeating-linear-gradient(0deg, transparent 0 38px, #0000000a 38px 39px),
+  repeating-linear-gradient(90deg, transparent 0 38px, #0000000a 38px 39px), var(--zemin-2); }
+.harita iframe { filter: none; }
+
+.hasar-tablo .temiz dd { color: #2f7a3a; }
