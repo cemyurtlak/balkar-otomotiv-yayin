@@ -10,10 +10,11 @@ declare(strict_types=1);
 const YZ_DOSYA = __DIR__ . '/yz_anahtar.php';
 const YZ_AC_KLASOR = YEDEK . '/sahibinden_ac';
 /* Model alanına virgülle birden çok model yazılabilir: sırayla denenir (ilki yoğun/kapalıysa sonraki). */
-const YZ_VARSAYILAN = ['gemini_anahtar' => '', 'gemini_model' => 'gemini-3.6-flash, gemini-3.8-flash, gemini-3.5-flash-lite',
+const YZ_VARSAYILAN = ['gemini_anahtar' => '', 'gemini_model' => 'gemini-3.6-flash, gemini-3.5-flash-lite, gemini-3.8-flash',
                        'nim_anahtar' => '', 'nim_model' => 'deepseek-ai/deepseek-v4.1-flash'];
 // eski varsayılanlar → yenisi (8 Kasım: 3.8-flash çok yoğundu; NVIDIA v4-flash ve -0731 kullanımdan kalktı)
 const YZ_ESKI_MODEL = ['gemini-3.8-flash' => 'gemini_model', 'gemini-3.8-flash, gemini-3.6-flash, gemini-3.5-flash-lite' => 'gemini_model',
+                       'gemini-3.6-flash, gemini-3.8-flash, gemini-3.5-flash-lite' => 'gemini_model',
                        'deepseek-ai/deepseek-v4-flash-0731' => 'nim_model', 'deepseek-ai/deepseek-v4-flash' => 'nim_model'];   // eski varsayılanlar → yenisi
 
 function yz_ayar(): array {
@@ -68,27 +69,40 @@ function yz_nim(string $istem, array $a, int $sure, string $model): string {
 }
 
 /** İstemi sırayla sağlayıcılara gönderir. Dönüş: [metin, sağlayıcı adı]. Hepsi başarısızsa RuntimeException. */
+/* Kota dolan (429) ya da cevap vermeyen model bir süre atlanır; bilgisi veri/yedek/yz_bekle.json'da. */
+const YZ_BEKLE = YEDEK . '/yz_bekle.json';
+function yz_bekle_oku(): array { $b = is_file(YZ_BEKLE) ? json_decode((string)file_get_contents(YZ_BEKLE), true) : []; return is_array($b) ? array_filter($b, fn($t) => $t > time()) : []; }
+function yz_bekle_yaz(string $model, int $sn): void {
+    $b = yz_bekle_oku(); $b[$model] = time() + $sn;
+    if (!is_dir(YEDEK)) { @mkdir(YEDEK, 0755, true); }
+    @file_put_contents(YZ_BEKLE, json_encode($b), LOCK_EX);
+}
+
 function yz_sor(string $istem, int $sure = 40): array {
     // $sure: TÜM denemeler için toplam süre (sn). Hostinger istekleri ~60 sn'de keser (504); her deneme kalan süreyle sınırlı.
-    $a = yz_ayar(); $hatalar = []; $son = time() + $sure;
+    $a = yz_ayar(); $hatalar = []; $son = time() + $sure; $bekle = yz_bekle_oku(); $atlanan = 0;
     foreach ([['Gemini', 'gemini_anahtar', 'gemini_model', 'yz_gemini'], ['NVIDIA', 'nim_anahtar', 'nim_model', 'yz_nim']] as [$ad, $ak, $mk, $fn]) {
         if ($a[$ak] === '') { continue; }
         foreach (yz_modeller($a[$mk]) as $model) {
+            if (isset($bekle[$model])) { $atlanan++; continue; }   // kısa süre önce kota doldu / takıldı
             for ($deneme = 1; $deneme <= 2; $deneme++) {
                 $kalan = $son - time();
                 if ($kalan < 6) { $hatalar[] = 'süre yetmedi'; break 3; }
-                try { return [$fn($istem, $a, min(30, $kalan), $model), "$ad $model"]; }
+                try { return [$fn($istem, $a, min(18, $kalan), $model), "$ad $model"]; }
                 catch (Throwable $e) {
                     $m = $e->getMessage();
                     // 503 / 500 (yoğunluk) → kısa bekleyip bir kez daha; yetki hatası → bu sağlayıcının diğer modellerini deneme
                     if ($deneme === 1 && preg_match('/HTTP 50[023]/', $m) && $son - time() > 12) { sleep(2); continue; }
-                    $hatalar[] = "$ad $model: $m";
+                    $hatalar[] = "$ad $model: " . mb_substr($m, 0, 90);
+                    if (str_contains($m, 'HTTP 429')) { yz_bekle_yaz($model, preg_match('/per ?day|daily|günlük/i', $m) ? 6 * 3600 : 20 * 60); }
+                    elseif (str_contains($m, 'timed out') || preg_match('/HTTP 50[023]/', $m)) { yz_bekle_yaz($model, 10 * 60); }
                     if (preg_match('/HTTP 40[13]/', $m)) { continue 3; }
                     continue 2;
                 }
             }
         }
     }
+    if ($atlanan && !$hatalar) { $hatalar[] = "tüm modeller kısa süreliğine beklemede (kota doldu ya da yoğun); biraz sonra tekrar denenecek"; }
     throw new RuntimeException($hatalar ? implode(' · ', $hatalar) : 'yapay zekâ anahtarı girilmemiş');
 }
 

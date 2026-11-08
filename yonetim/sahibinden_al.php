@@ -107,5 +107,6 @@ $simdi = date('c');
 eklenti_durum_yaz($ek + ['son_basari' => $simdi, 'okunan' => count($gelen), 'son_uyari' => $uyari, 'son_uyari_zaman' => $uyari ? $simdi : '']);
 @file_put_contents(YEDEK . '/sahibinden_son.json', json_encode(['zaman' => date('c'), 'onizle' => $onizle] + $sonuc,
     JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT), LOCK_EX);
+$sonuc['yz_kalan'] = count(array_filter($liste, fn($a) => ($a['yz_durum'] ?? '') === 'bekliyor' && ($a['durum'] ?? 'satista') !== 'satildi'));
 flock($kilit, LOCK_UN);
 cevap(200, $sonuc);

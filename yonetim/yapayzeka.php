@@ -90,6 +90,7 @@ Yapay zekâ çalışmazsa ilan yine eklenir, açıklaması sonra yazılır.</p>
   </form>
   <form method="post" action="yapayzeka.php?s=dene"><?= csrf_alan() ?><button class="y-btn y-btn-cizgi">Bağlantıyı dene</button>
     <small>İkisine de kısa bir deneme isteği gönderir.</small></form>
+  <?php $bk = yz_bekle_oku(); if ($bk): ?><p><small>Şu an beklemede (kota doldu ya da yoğun, sonra kendiliğinden tekrar denenir): <?php foreach ($bk as $m => $t): ?><?= h($m) ?> – <?= h(date('H:i', $t)) ?>'e kadar; <?php endforeach; ?></small></p><?php endif; ?>
   <p><small>Anahtarlar yalnız bu sunucuda saklanır (GitHub'a gitmez, sayfada gösterilmez). İlan açıklamaları yazılırken Google'a / NVIDIA'ya
   yalnız araç bilgisi ve sahibinden ilan metni gönderilir; müşteri bilgisi gönderilmez.</small></p>
 </section>
