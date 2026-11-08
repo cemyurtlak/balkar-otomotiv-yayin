@@ -149,6 +149,8 @@ function sh_ilan_cevir(string $id, array $v): array {
             'agir_hasar' => ($b['Ağır Hasar Kayıtlı'] ?? '') === 'Evet',
         ],
         '_tramer_bulundu' => $tramer !== null,
+        '_parca_var' => (bool)array_intersect_key((array)($v['parca'] ?? []), SH_PARCA),
+        '_tarih_var' => sh_tarih((string)($b['İlan Tarihi'] ?? '')) !== null,
         'kaynak' => 'sahibinden',
     ];
 }
@@ -163,7 +165,7 @@ function sh_birlestir(array $site, array $gelen): array {
     $gorulen = [];
     foreach ($gelen as $a) {
         $id = (string)$a['id']; $gorulen[$id] = true;
-        $tramerVar = $a['_tramer_bulundu']; unset($a['_tramer_bulundu']);
+        $tramerVar = $a['_tramer_bulundu']; unset($a['_tramer_bulundu'], $a['_parca_var'], $a['_tarih_var']);
         if (!isset($mevcut[$id])) { $liste[] = $a + ['durum' => 'satista', 'yz_durum' => 'bekliyor']; $rapor['eklenen'][] = $ad($a) . ' – ' . number_format($a['fiyat'], 0, ',', '.') . ' TL'; continue; }
         $e = $site[$mevcut[$id]];
         $f = ilan_farklari($e, $a);
@@ -213,4 +215,29 @@ function sh_birlestir(array $site, array $gelen): array {
         foreach ($liste as $i => $a) { if (($a['durum'] ?? 'satista') !== 'satildi') { $liste[$i]['one_cikan'] = true; $rapor['one_cikan'] = $ad($a); break; } }
     }
     return [array_values($liste), $rapor];
+}
+
+/** Okunan veride "sahibinden sayfa yapısı değişmiş olabilir" işaretleri arar. Dönüş: uyarı satırları (boşsa sorun yok).
+    Tek tük eksik normaldir (ör. motosiklette hasar şeması yok); aynı eksik birçok ilanda birden görülürse uyarılır. */
+function sh_okuma_kontrol(array $gelen, array $rapor): array {
+    $n = count($gelen);
+    if ($n === 0) { return []; }
+    $esik = max(2, (int)ceil($n * 0.25));
+    $say = ['foto' => 0, 'parca' => 0, 'km' => 0, 'model' => 0, 'tarih' => 0];
+    foreach ($gelen as $a) {
+        $oto = $a['kategori'] !== 'motosiklet';
+        if (!$a['fotograflar']) { $say['foto']++; }
+        if ($oto && !$a['_parca_var']) { $say['parca']++; }
+        if ($oto && !$a['km']) { $say['km']++; }
+        if ($a['seri'] === '' && $a['model'] === '') { $say['model']++; }
+        if (!$a['_tarih_var']) { $say['tarih']++; }
+    }
+    $ad = ['foto' => 'fotoğraf okunamadı', 'parca' => 'boya/değişen şeması okunamadı', 'km' => 'km okunamadı',
+           'model' => 'seri/model okunamadı', 'tarih' => 'ilan tarihi okunamadı'];
+    $u = [];
+    foreach ($say as $k => $c) { if ($c >= $esik) { $u[] = "$n ilanın $c tanesinde {$ad[$k]} – sahibinden sayfa yapısı değişmiş olabilir, Cem'e haber verin."; } }
+    if (count($rapor['satildi'] ?? []) >= max(3, (int)ceil($n * 0.2))) {
+        $u[] = count($rapor['satildi']) . ' ilan birden sahibinden\'den kalkmış görünüyor (satıldı olarak gizlendi). Gerçekten satıldılarsa sorun yok; değilse Cem\'e haber verin (panel → Yedekler ile geri alınabilir).';
+    }
+    return $u;
 }

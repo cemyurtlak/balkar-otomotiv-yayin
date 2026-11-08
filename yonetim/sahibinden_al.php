@@ -8,6 +8,7 @@ require __DIR__ . '/_ortak.php';
 require __DIR__ . '/_aktar.php';
 require __DIR__ . '/_sahibinden.php';
 require __DIR__ . '/_yapayzeka.php';
+require_once __DIR__ . '/_eklenti_durum.php';
 @set_time_limit(150);
 
 header('Cache-Control: no-store');
@@ -26,6 +27,18 @@ $g = json_decode($ham, true);
 $k = is_array($g) ? (string)($g['k'] ?? '') : '';
 if ($_SERVER['REQUEST_METHOD'] !== 'POST' || $ozet === '' || $k === '' || !hash_equals($ozet, hash('sha256', $k))) {
     http_response_code(404); header('Content-Type: text/html; charset=utf-8'); echo '<!doctype html><title>404</title>404'; exit;
+}
+
+$ek = ['surum' => mb_substr((string)($g['surum'] ?? ''), 0, 10), 'ayar_surum' => (int)($g['ayar_surum'] ?? 0), 'otomatik' => !empty($g['otomatik'])];
+/** Okuma/güvenlik hatası: durum dosyasına yazılır (panel uyarısı, günlük kontrol), sonra cevap döner. */
+function hata_cevap(string $mesaj, array $ek, array $fazla = []): never {
+    eklenti_durum_yaz($ek + ['son_hata' => $mesaj, 'son_hata_zaman' => date('c')]);
+    cevap(422, ['ok' => false, 'hata' => $mesaj] + $fazla);
+}
+// eklenti tarafında olan hata (sahibinden girişi, sayfa yapısı, zaman aşımı…): yalnız kaydedilir
+if (!empty($g['hata_bildir'])) {
+    eklenti_durum_yaz($ek + ['son_hata' => mb_substr(strip_tags((string)$g['hata_bildir']), 0, 500), 'son_hata_zaman' => date('c')]);
+    cevap(200, ['ok' => true]);
 }
 
 $kilit = fopen(sys_get_temp_dir() . '/balkar_sahibinden.lock', 'c');
@@ -56,13 +69,15 @@ $satista_sh = count(array_filter($v['araclar'], fn($a) => ($a['kaynak'] ?? '') =
 $toplam_hata = count($okuma_hatasi) + count($cevir_hata);
 // güvenlik: okuma yarım kaldıysa (giriş sayfası, bot doğrulaması, sayfa yapısı değişti) siteye dokunma,
 // yoksa okunamayan ilanlar "satıldı" sayılırdı
-if (!$gelen) { cevap(422, ['ok' => false, 'hata' => 'Hiç ilan okunamadı; site değiştirilmedi.', 'hatalar' => array_merge($okuma_hatasi, $cevir_hata)]); }
-if ($toplam_hata > 0) { cevap(422, ['ok' => false, 'hata' => "$toplam_hata ilan okunamadı; eksik veriyle siteyi değiştirmemek için güncelleme yapılmadı. Biraz sonra tekrar deneyin.", 'hatalar' => array_merge($okuma_hatasi, $cevir_hata)]); }
+if (!$gelen) { hata_cevap('Hiç ilan okunamadı; site değiştirilmedi.', $ek, ['hatalar' => array_merge($okuma_hatasi, $cevir_hata)]); }
+if ($toplam_hata > 0) { hata_cevap("$toplam_hata ilan okunamadı; eksik veriyle siteyi değiştirmemek için güncelleme yapılmadı. Biraz sonra tekrar deneyin.", $ek, ['hatalar' => array_merge($okuma_hatasi, $cevir_hata)]); }
 if ($satista_sh >= 6 && count($gelen) < $satista_sh / 2 && empty($g['zorla'])) {
-    cevap(422, ['ok' => false, 'hata' => 'Sahibinden\'de ' . count($gelen) . " ilan okundu, sitede $satista_sh var. Bu kadar büyük düşüş hatalı okuma olabilir; site değiştirilmedi. Doğruysa eklentide \"Yine de uygula\" ile gönderin."]);
+    hata_cevap('Sahibinden\'de ' . count($gelen) . " ilan okundu, sitede $satista_sh var. Bu kadar büyük düşüş hatalı okuma olabilir; site değiştirilmedi. Doğruysa eklentide \"Yine de uygula\" ile gönderin.", $ek);
 }
 
 [$liste, $rapor] = sh_birlestir($v['araclar'], $gelen);
+$uyari = sh_okuma_kontrol($gelen, $rapor);
+if ($uyari) { $rapor['uyarilar'] = $uyari; }
 $degisiklik = count($rapor['eklenen']) + count($rapor['guncellenen']) + count($rapor['satildi']) + count($rapor['geri_geldi']);
 @mkdir(YEDEK, 0755, true);
 $sonuc = ['ok' => true, 'onizle' => $onizle, 'okunan' => count($gelen), 'rapor' => $rapor,
@@ -80,6 +95,8 @@ if (!$onizle && $degisiklik > 0) {
     veri_yaz($v, 'sahibinden eklentisi (' . date('d.m.Y H:i') . ')');
     $sonuc['yazildi'] = true;
 }
+$simdi = date('c');
+eklenti_durum_yaz($ek + ['son_basari' => $simdi, 'okunan' => count($gelen), 'son_uyari' => $uyari, 'son_uyari_zaman' => $uyari ? $simdi : '']);
 @file_put_contents(YEDEK . '/sahibinden_son.json', json_encode(['zaman' => date('c'), 'onizle' => $onizle] + $sonuc,
     JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT), LOCK_EX);
 flock($kilit, LOCK_UN);

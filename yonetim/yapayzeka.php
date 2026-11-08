@@ -64,6 +64,17 @@ sablon_bas('Yapay zekâ'); mesaj(); ?>
 <b>4 dilde</b> yazılır ve başlıktaki yazım hataları düzeltilir. Önce <b>Gemini</b> denenir; çalışmazsa ya da kotası dolarsa <b>NVIDIA</b> devreye girer.
 Yapay zekâ çalışmazsa ilan yine eklenir, açıklaması sonra yazılır.</p>
 
+<?php require_once __DIR__ . '/_eklenti_durum.php'; $sg = eklenti_saglik(); $ed = eklenti_durum_oku(); ?>
+<section class="y-kart" id="eklenti">
+  <h2>Sahibinden eklentisi durumu</h2>
+  <p><?= $sg['saglikli'] ? '✅' : '⚠️' ?> <?= h($sg['ozet']) ?></p>
+  <?php if ($sg['sorunlar']): ?><ul><?php foreach ($sg['sorunlar'] as $x): ?><li><?= h($x) ?></li><?php endforeach; ?></ul><?php endif; ?>
+  <p><small>Son deneme: <?= h(isset($ed['son_deneme']) ? date('d.m.Y H:i', strtotime($ed['son_deneme'])) : '—') ?> ·
+    eklenti sürümü <?= h($ed['surum'] ?? '—') ?> · okuma kuralları sürümü <?= h((string)($ed['ayar_surum'] ?? '—')) ?> ·
+    <?= !empty($ed['otomatik']) ? 'otomatik çalışma' : 'elle çalıştırma' ?>.
+    <?= EKLENTI_ESIK_GUN ?> gün başarılı güncelleme olmazsa ya da son çalışma hata verirse bu uyarı panelin her sayfasında görünür.</small></p>
+</section>
+
 <section class="y-kart">
   <h2>Anahtarlar</h2>
   <form method="post" action="yapayzeka.php?s=kaydet" autocomplete="off"><?= csrf_alan() ?>
