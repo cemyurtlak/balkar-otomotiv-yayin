@@ -31,6 +31,16 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST' || $ozet === '' || $k === '' || !hash_
 $kilit = fopen(sys_get_temp_dir() . '/balkar_sahibinden.lock', 'c');
 if (!$kilit || !flock($kilit, LOCK_EX | LOCK_NB)) { cevap(409, ['ok' => false, 'hata' => 'Başka bir güncelleme sürüyor.']); }
 
+// yalnız yapay zekâ devamı: sahibinden verisi gönderilmez, açıklaması bekleyen araçlar yazılır (eklenti kalan varsa tekrar çağırır)
+if (!empty($g['yz_devam'])) {
+    $v = veri_oku();
+    $yz = yz_bekleyenleri_doldur($v['araclar'], 50);
+    $yazilan = count(array_filter($yz, fn($x) => str_contains($x, 'açıklama yazıldı')));
+    if ($yazilan > 0) { veri_yaz($v, 'yapay zekâ açıklaması (eklenti)'); }
+    $kalan = count(array_filter($v['araclar'], fn($a) => ($a['yz_durum'] ?? '') === 'bekliyor' && ($a['durum'] ?? 'satista') !== 'satildi'));
+    flock($kilit, LOCK_UN);
+    cevap(200, ['ok' => true, 'yz' => $yz, 'yazilan' => $yazilan, 'kalan' => $kalan]);
+}
 $R = is_array($g['R'] ?? null) ? $g['R'] : [];
 $okuma_hatasi = array_slice(array_map('strval', (array)($g['hatalar'] ?? [])), 0, 50);
 $onizle = !empty($g['onizle']);
