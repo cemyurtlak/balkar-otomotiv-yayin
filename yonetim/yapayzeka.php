@@ -20,21 +20,25 @@ if ($post) {
         $sil = array_map('intval', (array)($_POST['sil'] ?? []));
         $l = array_values(array_filter($l, fn($k, $i) => !in_array($i + 1, $sil, true), ARRAY_FILTER_USE_BOTH));
         $sh = sifre_hash(); $eklenen = 0;
-        // kutudaki metinden anahtarları ayıkla: satır, boşluk, virgül, tırnak fark etmez (her biri "AIza…" ile başlar)
+        // kutudaki metinden anahtarları ayıkla: satır, boşluk, virgül, tırnak, numara fark etmez.
+        // Google'ın iki biçimi de kabul: eski "AIza…" (39) ve yeni uzun biçim (harf, rakam, nokta, - _). Kısa parçalar (ör. "1)") atlanır.
         $metin = (string)($_POST['yeni_anahtarlar'] ?? '');
-        preg_match_all('/AIza[0-9A-Za-z_\-]{30,60}/', $metin, $bul);
-        $kalan_metin = trim(preg_replace('/AIza[0-9A-Za-z_\-]{30,60}|[\s,;"\']+/', ' ', $metin));
+        $parcalar = preg_split('/[\s,;"\'`]+/u', $metin, -1, PREG_SPLIT_NO_EMPTY);
+        $bul = [[]]; $kisa = 0; $sh = sifre_hash();
+        foreach ($parcalar as $pc) {
+            $pc = trim($pc, "()[]{}<>.:");
+            if ($pc === '') { continue; }
+            if ($sh !== null && password_verify($pc, $sh)) { $hata[] = 'kutuda panel şifresi vardı; eklenmedi'; continue; }
+            if (preg_match('/^[0-9A-Za-z._\-]{30,200}$/', $pc)) { $bul[0][] = $pc; }
+            elseif (mb_strlen($pc) > 3) { $kisa++; }
+        }
         foreach ($bul[0] as $sira => $k) {
             $n = $sira + 1;
             if (in_array($k, $l, true)) { $hata[] = "$n. anahtar (…" . substr($k, -4) . ') zaten kayıtlı'; continue; }
             if (count($l) >= 10) { $hata[] = 'en çok 10 anahtar; fazlası eklenmedi'; break; }
             $l[] = $k; $eklenen++;
         }
-        if ($kalan_metin !== '') {
-            $sh = sifre_hash();
-            $hata[] = ($sh !== null && password_verify($kalan_metin, $sh)) ? 'kutuda panel şifresi vardı; eklenmedi'
-                : 'kutuda Gemini anahtarı olmayan ' . mb_strlen($kalan_metin) . ' karakterlik yazı vardı; eklenmedi';
-        }
+        if ($kisa) { $hata[] = "$kisa parça anahtara benzemedi (çok kısa ya da geçersiz karakter); eklenmedi"; }
         $yeni['gemini_anahtarlar'] = $l;
         $m = trim((string)($_POST['gemini_model'] ?? ''));
         if ($m !== '' && preg_match('#^[\w.\-/:, ]{2,300}$#', $m)) { $yeni['gemini_model'] = $m; }
@@ -109,10 +113,10 @@ Yapay zekâ çalışmazsa ilan yine eklenir, açıklaması sonra yazılır.</p>
     <p><b>Kayıtlı Gemini anahtarları</b> <small>(sırayla kullanılır; birinin kotası dolunca sonrakine geçilir)</small></p>
     <?php $kl = yz_gemini_anahtarlar($a); if (!$kl): ?><p><small>Henüz anahtar yok.</small></p><?php endif; ?>
     <?php foreach ($kl as $n => $k): ?>
-      <label class="y-onay"><input type="checkbox" name="sil[]" value="<?= $n ?>"> <?= $n ?>. anahtar: <code>AIza…<?= h(mb_substr($k, -4)) ?></code> – sil</label>
+      <label class="y-onay"><input type="checkbox" name="sil[]" value="<?= $n ?>"> <?= $n ?>. anahtar: <code><?= h(substr($k, 0, 4)) ?>…<?= h(substr($k, -4)) ?></code> – sil</label>
     <?php endforeach; ?>
     <label>Eklenecek Gemini anahtarları <small>(her satıra bir; boş bırakırsanız kayıtlılar aynen kalır)</small>
-      <textarea name="yeni_anahtarlar" rows="4" spellcheck="false" autocomplete="off" placeholder="AIza…&#10;AIza…&#10;AIza…" style="font-family:monospace;width:100%"></textarea></label>
+      <textarea name="yeni_anahtarlar" rows="4" spellcheck="false" autocomplete="off" placeholder="anahtar 1&#10;anahtar 2&#10;anahtar 3" style="font-family:monospace;width:100%"></textarea></label>
     <label>Gemini modelleri <small>(virgülle; sırayla denenir, her model için anahtarlar sırayla)</small> <input name="gemini_model" value="<?= h($a['gemini_model']) ?>"></label>
     <p><button class="y-btn">Kaydet</button></p>
   </form>
