@@ -16,20 +16,26 @@ if ($post) {
     if ($s === 'kaydet') {
         $yeni = [];
         $hata = [];
-        foreach (['gemini', 'gemini2', 'gemini3'] as $n => $p) {
-            $k = trim((string)($_POST[$p . '_anahtar'] ?? ''));
-            if (!empty($_POST[$p . '_sil'])) { $yeni[$p . '_anahtar'] = ''; continue; }
-            if ($k === '') { continue; }   // boş kutu → kayıtlı anahtar aynen kalır
-            // tarayıcı şifre kutusuna panel şifresini kendiliğinden doldurmuş olabilir → kaydetme
-            $sh = sifre_hash();
-            if ($sh !== null && password_verify($k, $sh)) { $hata[] = ($n + 1) . '. kutuya panel şifresi doldurulmuş (tarayıcı otomatik doldurdu); kaydedilmedi'; continue; }
-            if (!preg_match('/^AIza[\w\-]{30,60}$/', $k)) { $hata[] = ($n + 1) . '. kutudaki değer Gemini anahtarına benzemiyor ("AIza" ile başlar); kaydedilmedi'; continue; }
-            $yeni[$p . '_anahtar'] = $k;
+        $l = array_values(yz_gemini_anahtarlar(yz_ayar()));
+        $sil = array_map('intval', (array)($_POST['sil'] ?? []));
+        $l = array_values(array_filter($l, fn($k, $i) => !in_array($i + 1, $sil, true), ARRAY_FILTER_USE_BOTH));
+        $sh = sifre_hash(); $eklenen = 0;
+        foreach (preg_split('/\R/', (string)($_POST['yeni_anahtarlar'] ?? '')) as $sat => $k) {
+            $k = trim($k, " \t\"'");
+            if ($k === '') { continue; }
+            $n = $sat + 1;
+            if ($sh !== null && password_verify($k, $sh)) { $hata[] = "$n. satırda panel şifresi var; eklenmedi"; continue; }
+            if (!preg_match('/^AIza[\w\-]{30,60}$/', $k)) { $hata[] = "$n. satır Gemini anahtarına benzemiyor (\"AIza\" ile başlar); eklenmedi"; continue; }
+            if (in_array($k, $l, true)) { $hata[] = "$n. satırdaki anahtar zaten kayıtlı"; continue; }
+            if (count($l) >= 10) { $hata[] = 'en çok 10 anahtar; fazlası eklenmedi'; break; }
+            $l[] = $k; $eklenen++;
         }
+        $yeni['gemini_anahtarlar'] = $l;
         $m = trim((string)($_POST['gemini_model'] ?? ''));
         if ($m !== '' && preg_match('#^[\w.\-/:, ]{2,300}$#', $m)) { $yeni['gemini_model'] = $m; }
         yz_ayar_yaz($yeni);
-        git('yapayzeka.php', $hata ? 'Kaydedildi, ama: ' . implode(' · ', $hata) . '.' : 'Ayarlar kaydedildi.', (bool)$hata);
+        $ozet = "Kaydedildi: $eklenen anahtar eklendi" . ($sil ? ', ' . count($sil) . ' silindi' : '') . ', toplam ' . count($l) . ' anahtar.';
+        git('yapayzeka.php', $hata ? $ozet . ' Dikkat: ' . implode(' · ', $hata) . '.' : $ozet, (bool)$hata);
     }
     if ($s === 'dene') {
         $a = yz_ayar(); $sonuc = [];
@@ -60,18 +66,19 @@ if ($post) {
 }
 
 $a = yz_ayar();
-$temiz = [];
-foreach (['gemini_anahtar' => 1, 'gemini2_anahtar' => 2, 'gemini3_anahtar' => 3] as $kk => $n) {
-    if ($a[$kk] !== '' && sifre_hash() !== null && password_verify($a[$kk], (string)sifre_hash())) { $temiz[$kk] = ''; }
+$kayitli = yz_gemini_anahtarlar($a);
+$temiz = array_filter($kayitli, fn($k) => sifre_hash() !== null && password_verify($k, (string)sifre_hash()));
+if ($temiz) {
+    yz_ayar_yaz(['gemini_anahtarlar' => array_values(array_diff_key($kayitli, $temiz))]); $a = yz_ayar();
+    $_SESSION['hata'] = 'Kayıtlı Gemini anahtarlarından biri aslında panel şifresiydi (tarayıcı otomatik doldurmuş); silindi. Doğru anahtarı aşağıdaki kutuya ekleyin.';
 }
-if ($temiz) { yz_ayar_yaz($temiz); $a = yz_ayar(); $_SESSION['hata'] = 'Kayıtlı Gemini anahtarlarından biri aslında panel şifresiydi (tarayıcı otomatik doldurmuş); silindi. O kutuya doğru anahtarı girin.'; }
 $v = veri_oku();
 $maske = fn(string $k) => $k === '' ? 'girilmemiş' : 'kayıtlı (…' . h(mb_substr($k, -4)) . ')';
 $DURUM = ['tamam' => 'yazıldı', 'bekliyor' => 'bekliyor', 'ham_yok' => 'sahibinden metni yok'];
 sablon_bas('Yapay zekâ'); mesaj(); ?>
 <h1>Yapay zekâ ile ilan açıklaması</h1>
 <p>Sahibinden eklentisi yeni bir ilan getirdiğinde, ilanın açıklamasından firma tanıtımı ve takas/kredi yazıları ayıklanır, araca özel kısa bir açıklama
-<b>4 dilde</b> yazılır ve başlıktaki yazım hataları düzeltilir. En çok 3 <b>Gemini</b> anahtarı sırayla kullanılır; birinin kotası dolarsa sonrakine geçilir.
+<b>4 dilde</b> yazılır ve başlıktaki yazım hataları düzeltilir. Girdiğiniz <b>Gemini</b> anahtarları (en çok 10) sırayla kullanılır; birinin kotası dolarsa sonrakine geçilir.
 Yapay zekâ çalışmazsa ilan yine eklenir, açıklaması sonra yazılır.</p>
 
 <?php require_once __DIR__ . '/_eklenti_durum.php'; $sg = eklenti_saglik(); $ed = eklenti_durum_oku(); ?>
@@ -88,14 +95,13 @@ Yapay zekâ çalışmazsa ilan yine eklenir, açıklaması sonra yazılır.</p>
 <section class="y-kart">
   <h2>Anahtarlar</h2>
   <form method="post" action="yapayzeka.php?s=kaydet" autocomplete="off"><?= csrf_alan() ?>
-    <label>1. Gemini API anahtarı – <small><?= $maske($a['gemini_anahtar']) ?></small>
-      <input type="password" autocomplete="new-password" name="gemini_anahtar" placeholder="AIza… (değiştirmek için yapıştırın, boş bırakırsanız eskisi kalır)"></label>
-    <?php if ($a['gemini_anahtar'] !== ''): ?><label class="y-onay"><input type="checkbox" name="gemini_sil" value="1"> 1. Gemini anahtarını sil</label><?php endif; ?>
-    <?php foreach ([2, 3] as $n): $kk = "gemini{$n}_anahtar"; ?>
-    <label><?= $n ?>. Gemini API anahtarı <small>(isteğe bağlı; öncekinin kotası dolunca kullanılır)</small> – <small><?= $maske($a[$kk]) ?></small>
-      <input type="password" autocomplete="new-password" name="gemini<?= $n ?>_anahtar" placeholder="AIza… (boş bırakırsanız eskisi kalır)"></label>
-    <?php if ($a[$kk] !== ''): ?><label class="y-onay"><input type="checkbox" name="gemini<?= $n ?>_sil" value="1"> <?= $n ?>. Gemini anahtarını sil</label><?php endif; ?>
+    <p><b>Kayıtlı Gemini anahtarları</b> <small>(sırayla kullanılır; birinin kotası dolunca sonrakine geçilir)</small></p>
+    <?php $kl = yz_gemini_anahtarlar($a); if (!$kl): ?><p><small>Henüz anahtar yok.</small></p><?php endif; ?>
+    <?php foreach ($kl as $n => $k): ?>
+      <label class="y-onay"><input type="checkbox" name="sil[]" value="<?= $n ?>"> <?= $n ?>. anahtar: <code>AIza…<?= h(mb_substr($k, -4)) ?></code> – sil</label>
     <?php endforeach; ?>
+    <label>Eklenecek Gemini anahtarları <small>(her satıra bir; boş bırakırsanız kayıtlılar aynen kalır)</small>
+      <textarea name="yeni_anahtarlar" rows="4" spellcheck="false" autocomplete="off" placeholder="AIza…&#10;AIza…&#10;AIza…" style="font-family:monospace;width:100%"></textarea></label>
     <label>Gemini modelleri <small>(virgülle; sırayla denenir, her model için anahtarlar sırayla)</small> <input name="gemini_model" value="<?= h($a['gemini_model']) ?>"></label>
     <p><button class="y-btn">Kaydet</button></p>
   </form>

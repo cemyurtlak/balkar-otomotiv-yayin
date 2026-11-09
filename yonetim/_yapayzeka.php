@@ -10,7 +10,7 @@ declare(strict_types=1);
 const YZ_DOSYA = __DIR__ . '/yz_anahtar.php';
 const YZ_AC_KLASOR = YEDEK . '/sahibinden_ac';
 /* Model alanına virgülle birden çok model yazılabilir: sırayla denenir (ilki yoğun/kapalıysa sonraki). */
-const YZ_VARSAYILAN = ['gemini_anahtar' => '', 'gemini2_anahtar' => '', 'gemini3_anahtar' => '', 'gemini_model' => 'gemini-3.6-flash, gemini-3.5-flash-lite, gemini-3.8-flash',
+const YZ_VARSAYILAN = ['gemini_anahtarlar' => [], 'gemini_model' => 'gemini-3.6-flash, gemini-3.5-flash-lite, gemini-3.8-flash',
                       ];
 // eski varsayılanlar → yenisi (8 Kasım: 3.8-flash çok yoğundu; NVIDIA v4-flash ve -0731 kullanımdan kalktı)
 const YZ_ESKI_MODEL = ['gemini-3.8-flash' => 'gemini_model', 'gemini-3.8-flash, gemini-3.6-flash, gemini-3.5-flash-lite' => 'gemini_model',
@@ -18,8 +18,12 @@ const YZ_ESKI_MODEL = ['gemini-3.8-flash' => 'gemini_model', 'gemini-3.8-flash, 
 
 function yz_ayar(): array {
     $a = is_file(YZ_DOSYA) ? include YZ_DOSYA : [];
-    if (is_array($a) && (isset($a['nim_anahtar']) || isset($a['nim_model']))) {   // NVIDIA kaldırıldı → dosyadan da sil
-        unset($a['nim_anahtar'], $a['nim_model']);
+    if (is_array($a) && array_intersect_key($a, array_flip(['nim_anahtar', 'nim_model', 'gemini_anahtar', 'gemini2_anahtar', 'gemini3_anahtar']))) {
+        // eski biçim → yeni: NVIDIA kaldırıldı; tek tek Gemini alanları tek listeye (gemini_anahtarlar) taşınır
+        $l = (array)($a['gemini_anahtarlar'] ?? []);
+        foreach (['gemini_anahtar', 'gemini2_anahtar', 'gemini3_anahtar'] as $k) { if (($a[$k] ?? '') !== '') { $l[] = $a[$k]; } }
+        $a['gemini_anahtarlar'] = array_values(array_unique($l));
+        unset($a['nim_anahtar'], $a['nim_model'], $a['gemini_anahtar'], $a['gemini2_anahtar'], $a['gemini3_anahtar']);
         yz_ayar_yaz_ham($a);
     }
     $a = array_merge(YZ_VARSAYILAN, is_array($a) ? $a : []);
@@ -37,10 +41,10 @@ function yz_ayar_yaz_ham(array $a): void {
     rename(YZ_DOSYA . '.tmp', YZ_DOSYA);
     if (function_exists('opcache_invalidate')) { @opcache_invalidate(YZ_DOSYA, true); }
 }
-/** Girilmiş Gemini anahtarları: [sıra no => anahtar] (1, 2, 3). */
+/** Girilmiş Gemini anahtarları: [sıra no => anahtar] (1, 2, 3, …). */
 function yz_gemini_anahtarlar(array $a): array {
     $l = [];
-    foreach ([1 => 'gemini_anahtar', 2 => 'gemini2_anahtar', 3 => 'gemini3_anahtar'] as $n => $k) { if (($a[$k] ?? '') !== '') { $l[$n] = $a[$k]; } }
+    foreach (array_values((array)($a['gemini_anahtarlar'] ?? [])) as $i => $k) { if ((string)$k !== '') { $l[$i + 1] = (string)$k; } }
     return $l;
 }
 function yz_hazir(): bool { return (bool)yz_gemini_anahtarlar(yz_ayar()); }
@@ -83,7 +87,7 @@ function yz_bekle_yaz(string $model, int $sn): void {
 
 function yz_sor(string $istem, int $sure = 40): array {
     // $sure: TÜM denemeler için toplam süre (sn). Hostinger istekleri ~60 sn'de keser (504); her deneme kalan süreyle sınırlı.
-    // Sıra: her Gemini modeli için önce 1., sonra 2., 3. anahtar. Kota (429) anahtar+model bazında beklemeye alınır.
+    // Sıra: her Gemini modeli için önce 1., sonra 2., 3. … anahtar. Kota (429) anahtar+model bazında beklemeye alınır.
     $a = yz_ayar(); $hatalar = []; $son = time() + $sure; $bekle = yz_bekle_oku(); $atlanan = 0;
     $sira = [];
     foreach (yz_modeller($a['gemini_model']) as $model) {
