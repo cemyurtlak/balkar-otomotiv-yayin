@@ -34,7 +34,9 @@ if ($post) {
         $m = trim((string)($_POST['gemini_model'] ?? ''));
         if ($m !== '' && preg_match('#^[\w.\-/:, ]{2,300}$#', $m)) { $yeni['gemini_model'] = $m; }
         yz_ayar_yaz($yeni);
-        $ozet = "Kaydedildi: $eklenen anahtar eklendi" . ($sil ? ', ' . count($sil) . ' silindi' : '') . ', toplam ' . count($l) . ' anahtar.';
+        $okunan = count(yz_gemini_anahtarlar(yz_ayar()));   // dosyadan yeniden okuyup doğrula
+        $ozet = "Kaydedildi: $eklenen anahtar eklendi" . ($sil ? ', ' . count($sil) . ' silindi' : '') . ", toplam $okunan anahtar.";
+        if ($okunan !== count($l)) { $hata[] = 'kayıt doğrulanamadı (' . count($l) . " yazıldı, $okunan okundu); sayfayı yenileyip tekrar deneyin"; }
         git('yapayzeka.php', $hata ? $ozet . ' Dikkat: ' . implode(' · ', $hata) . '.' : $ozet, (bool)$hata);
     }
     if ($s === 'dene') {

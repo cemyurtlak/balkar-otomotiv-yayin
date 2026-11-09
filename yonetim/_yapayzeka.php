@@ -16,18 +16,31 @@ const YZ_VARSAYILAN = ['gemini_anahtarlar' => [], 'gemini_model' => 'gemini-3.6-
 const YZ_ESKI_MODEL = ['gemini-3.8-flash' => 'gemini_model', 'gemini-3.8-flash, gemini-3.6-flash, gemini-3.5-flash-lite' => 'gemini_model',
                        'gemini-3.6-flash, gemini-3.8-flash, gemini-3.5-flash-lite' => 'gemini_model',];   // eski varsayılanlar → yenisi
 
+/* Ayar dosyası biçimi (9 Kasım'dan beri): ilk satır "<?php exit; ?>" (tarayıcıdan açılırsa hiçbir şey göstermez), sonrası JSON.
+   PHP "include" ile OKUNMAZ: Hostinger'ın PHP önbelleği (opcache) dosyanın eski halini döndürüp yeni kaydı ezebiliyordu
+   (9 Kasım: 3 anahtar + 2 yeni → 1 anahtar kaldı). */
+const YZ_BASLIK = "<?php exit; ?>\n";
+function yz_dosya_oku(): array {
+    if (!is_file(YZ_DOSYA)) { return []; }
+    clearstatcache(true, YZ_DOSYA);
+    $t = (string)file_get_contents(YZ_DOSYA);
+    if (str_starts_with($t, '<?php exit;')) { $j = json_decode(substr($t, strpos($t, "\n") + 1), true); return is_array($j) ? $j : []; }
+    // eski biçim (return array(...);): önbelleğe takılmamak için benzersiz adlı geçici kopyadan bir kez okunur, yeni biçime çevrilir
+    $g = sys_get_temp_dir() . '/yz_eski_' . bin2hex(random_bytes(6)) . '.php';
+    file_put_contents($g, $t);
+    $a = include $g;
+    @unlink($g);
+    $a = is_array($a) ? $a : [];
+    $l = (array)($a['gemini_anahtarlar'] ?? []);
+    foreach (['gemini_anahtar', 'gemini2_anahtar', 'gemini3_anahtar'] as $k) { if (($a[$k] ?? '') !== '') { $l[] = $a[$k]; } }
+    $a['gemini_anahtarlar'] = array_values(array_unique($l));
+    unset($a['nim_anahtar'], $a['nim_model'], $a['gemini_anahtar'], $a['gemini2_anahtar'], $a['gemini3_anahtar']);
+    yz_ayar_yaz_ham($a);
+    return $a;
+}
 function yz_ayar(): array {
-    $a = is_file(YZ_DOSYA) ? include YZ_DOSYA : [];
-    if (is_array($a) && array_intersect_key($a, array_flip(['nim_anahtar', 'nim_model', 'gemini_anahtar', 'gemini2_anahtar', 'gemini3_anahtar']))) {
-        // eski biçim → yeni: NVIDIA kaldırıldı; tek tek Gemini alanları tek listeye (gemini_anahtarlar) taşınır
-        $l = (array)($a['gemini_anahtarlar'] ?? []);
-        foreach (['gemini_anahtar', 'gemini2_anahtar', 'gemini3_anahtar'] as $k) { if (($a[$k] ?? '') !== '') { $l[] = $a[$k]; } }
-        $a['gemini_anahtarlar'] = array_values(array_unique($l));
-        unset($a['nim_anahtar'], $a['nim_model'], $a['gemini_anahtar'], $a['gemini2_anahtar'], $a['gemini3_anahtar']);
-        yz_ayar_yaz_ham($a);
-    }
-    $a = array_merge(YZ_VARSAYILAN, is_array($a) ? $a : []);
-    foreach (YZ_ESKI_MODEL as $eski => $alan) { if (trim($a[$alan]) === $eski) { $a[$alan] = YZ_VARSAYILAN[$alan]; } }
+    $a = array_merge(YZ_VARSAYILAN, yz_dosya_oku());
+    foreach (YZ_ESKI_MODEL as $eski => $alan) { if (trim((string)$a[$alan]) === $eski) { $a[$alan] = YZ_VARSAYILAN[$alan]; } }
     return $a;
 }
 function yz_modeller(string $s): array { return array_values(array_filter(array_map('trim', explode(',', $s)))); }
@@ -35,10 +48,12 @@ function yz_ayar_yaz(array $a): void {
     yz_ayar_yaz_ham(array_intersect_key(array_merge(yz_ayar(), $a), YZ_VARSAYILAN));
 }
 function yz_ayar_yaz_ham(array $a): void {
-    $icerik = "<?php\n/* Yapay zekâ anahtarları – panelden yazılır. GitHub'a koymayın. */\nreturn " . var_export($a, true) . ";\n";
-    file_put_contents(YZ_DOSYA . '.tmp', $icerik, LOCK_EX);
-    @chmod(YZ_DOSYA . '.tmp', 0600);
-    rename(YZ_DOSYA . '.tmp', YZ_DOSYA);
+    $icerik = YZ_BASLIK . json_encode($a, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_PRETTY_PRINT) . "\n";
+    $tmp = YZ_DOSYA . '.' . bin2hex(random_bytes(4)) . '.tmp';
+    if (file_put_contents($tmp, $icerik, LOCK_EX) === false) { throw new RuntimeException('ayar dosyası yazılamadı'); }
+    @chmod($tmp, 0600);
+    if (!rename($tmp, YZ_DOSYA)) { @unlink($tmp); throw new RuntimeException('ayar dosyası yazılamadı'); }
+    clearstatcache(true, YZ_DOSYA);
     if (function_exists('opcache_invalidate')) { @opcache_invalidate(YZ_DOSYA, true); }
 }
 /** Girilmiş Gemini anahtarları: [sıra no => anahtar] (1, 2, 3, …). */
