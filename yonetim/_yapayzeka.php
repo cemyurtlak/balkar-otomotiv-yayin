@@ -2,7 +2,7 @@
 /* Balkar Otomotiv – yapay zekâ ile ilan açıklaması (Aşama 55).
    Sahibinden ilan açıklamasından (firma tanıtımı, takas, kredi kartı vb. tekrar eden yazılar atılarak) araca özel kısa
    bir açıklama 4 dilde (tr/en/ru/de) ve yazım hatası düzeltilmiş başlık üretir.
-   Sağlayıcılar sırayla denenir: 1) Google Gemini  2) NVIDIA NIM (OpenAI uyumlu; ör. deepseek-ai/deepseek-v4-flash-0731).
+   Sağlayıcılar sırayla denenir: 1) Google Gemini  (NVIDIA NIM yedeği 9 Kasım'da kaldırıldı: sürekli zaman aşımı).
    Anahtarlar yalnız sunucuda: yonetim/yz_anahtar.php (panel → Yapay zekâ sayfasından yazılır; GitHub'a ve
    guncelle.php'ye girmez). Ham sahibinden açıklamaları: veri/yedek/sahibinden_ac/<ilanNo>.txt (dışarıya kapalı). */
 declare(strict_types=1);
@@ -11,21 +11,26 @@ const YZ_DOSYA = __DIR__ . '/yz_anahtar.php';
 const YZ_AC_KLASOR = YEDEK . '/sahibinden_ac';
 /* Model alanına virgülle birden çok model yazılabilir: sırayla denenir (ilki yoğun/kapalıysa sonraki). */
 const YZ_VARSAYILAN = ['gemini_anahtar' => '', 'gemini2_anahtar' => '', 'gemini3_anahtar' => '', 'gemini_model' => 'gemini-3.6-flash, gemini-3.5-flash-lite, gemini-3.8-flash',
-                       'nim_anahtar' => '', 'nim_model' => 'deepseek-ai/deepseek-v4.1-flash'];
+                      ];
 // eski varsayılanlar → yenisi (8 Kasım: 3.8-flash çok yoğundu; NVIDIA v4-flash ve -0731 kullanımdan kalktı)
 const YZ_ESKI_MODEL = ['gemini-3.8-flash' => 'gemini_model', 'gemini-3.8-flash, gemini-3.6-flash, gemini-3.5-flash-lite' => 'gemini_model',
-                       'gemini-3.6-flash, gemini-3.8-flash, gemini-3.5-flash-lite' => 'gemini_model',
-                       'deepseek-ai/deepseek-v4-flash-0731' => 'nim_model', 'deepseek-ai/deepseek-v4-flash' => 'nim_model'];   // eski varsayılanlar → yenisi
+                       'gemini-3.6-flash, gemini-3.8-flash, gemini-3.5-flash-lite' => 'gemini_model',];   // eski varsayılanlar → yenisi
 
 function yz_ayar(): array {
     $a = is_file(YZ_DOSYA) ? include YZ_DOSYA : [];
+    if (is_array($a) && (isset($a['nim_anahtar']) || isset($a['nim_model']))) {   // NVIDIA kaldırıldı → dosyadan da sil
+        unset($a['nim_anahtar'], $a['nim_model']);
+        yz_ayar_yaz_ham($a);
+    }
     $a = array_merge(YZ_VARSAYILAN, is_array($a) ? $a : []);
     foreach (YZ_ESKI_MODEL as $eski => $alan) { if (trim($a[$alan]) === $eski) { $a[$alan] = YZ_VARSAYILAN[$alan]; } }
     return $a;
 }
 function yz_modeller(string $s): array { return array_values(array_filter(array_map('trim', explode(',', $s)))); }
 function yz_ayar_yaz(array $a): void {
-    $a = array_intersect_key(array_merge(yz_ayar(), $a), YZ_VARSAYILAN);
+    yz_ayar_yaz_ham(array_intersect_key(array_merge(yz_ayar(), $a), YZ_VARSAYILAN));
+}
+function yz_ayar_yaz_ham(array $a): void {
     $icerik = "<?php\n/* Yapay zekâ anahtarları – panelden yazılır. GitHub'a koymayın. */\nreturn " . var_export($a, true) . ";\n";
     file_put_contents(YZ_DOSYA . '.tmp', $icerik, LOCK_EX);
     @chmod(YZ_DOSYA . '.tmp', 0600);
@@ -38,7 +43,7 @@ function yz_gemini_anahtarlar(array $a): array {
     foreach ([1 => 'gemini_anahtar', 2 => 'gemini2_anahtar', 3 => 'gemini3_anahtar'] as $n => $k) { if (($a[$k] ?? '') !== '') { $l[$n] = $a[$k]; } }
     return $l;
 }
-function yz_hazir(): bool { $a = yz_ayar(); return yz_gemini_anahtarlar($a) || $a['nim_anahtar'] !== ''; }
+function yz_hazir(): bool { return (bool)yz_gemini_anahtarlar(yz_ayar()); }
 
 function yz_post(string $url, array $baslik, array $govde, int $sure): array {
     $ch = curl_init($url);
@@ -65,14 +70,6 @@ function yz_gemini(string $istem, array $a, int $sure, string $model): string {
     if ($t === '') { throw new RuntimeException('boş cevap'); }
     return $t;
 }
-function yz_nim(string $istem, array $a, int $sure, string $model): string {
-    $j = yz_post('https://integrate.api.nvidia.com/v1/chat/completions', ['Authorization: Bearer ' . $a['nim_anahtar']],
-        ['model' => $model, 'messages' => [['role' => 'user', 'content' => $istem]], 'temperature' => 0.3,
-         'max_tokens' => 2048, 'stream' => false, 'chat_template_kwargs' => ['thinking' => false]], $sure);
-    $t = (string)($j['choices'][0]['message']['content'] ?? '');
-    if ($t === '') { throw new RuntimeException('boş cevap'); }
-    return $t;
-}
 
 /** İstemi sırayla sağlayıcılara gönderir. Dönüş: [metin, sağlayıcı adı]. Hepsi başarısızsa RuntimeException. */
 /* Kota dolan (429) ya da cevap vermeyen model bir süre atlanır; bilgisi veri/yedek/yz_bekle.json'da. */
@@ -86,13 +83,12 @@ function yz_bekle_yaz(string $model, int $sn): void {
 
 function yz_sor(string $istem, int $sure = 40): array {
     // $sure: TÜM denemeler için toplam süre (sn). Hostinger istekleri ~60 sn'de keser (504); her deneme kalan süreyle sınırlı.
-    // Sıra: her Gemini modeli için önce 1., sonra 2., 3. anahtar; en son NVIDIA. Kota (429) anahtar+model bazında beklemeye alınır.
+    // Sıra: her Gemini modeli için önce 1., sonra 2., 3. anahtar. Kota (429) anahtar+model bazında beklemeye alınır.
     $a = yz_ayar(); $hatalar = []; $son = time() + $sure; $bekle = yz_bekle_oku(); $atlanan = 0;
     $sira = [];
     foreach (yz_modeller($a['gemini_model']) as $model) {
         foreach (yz_gemini_anahtarlar($a) as $n => $k) { $sira[] = ["Gemini#$n", 'yz_gemini', ['gemini_anahtar' => $k] + $a, $model, "g$n:$model", "g$n"]; }
     }
-    if ($a['nim_anahtar'] !== '') { foreach (yz_modeller($a['nim_model']) as $model) { $sira[] = ['NVIDIA', 'yz_nim', $a, $model, "n:$model", 'n']; } }
     $yetkisiz = [];
     foreach ($sira as [$ad, $fn, $aa, $model, $bk, $anahtar_id]) {
         if (isset($yetkisiz[$anahtar_id])) { continue; }
@@ -117,16 +113,6 @@ function yz_sor(string $istem, int $sure = 40): array {
     throw new RuntimeException($hatalar ? implode(' · ', $hatalar) : 'yapay zekâ anahtarı girilmemiş');
 }
 
-/** NVIDIA'daki modellerden adı $ara içerenleri listeler (panelde model önerisi için). */
-function yz_nim_modelleri(string $anahtar, string $ara = 'deepseek'): array {
-    $ch = curl_init('https://integrate.api.nvidia.com/v1/models');
-    curl_setopt_array($ch, [CURLOPT_RETURNTRANSFER => true, CURLOPT_TIMEOUT => 15, CURLOPT_HTTPHEADER => ['Authorization: Bearer ' . $anahtar]]);
-    $j = json_decode((string)curl_exec($ch), true); curl_close($ch);
-    $l = [];
-    foreach ((array)($j['data'] ?? []) as $m) { $id = (string)($m['id'] ?? ''); if ($id !== '' && stripos($id, $ara) !== false) { $l[] = $id; } }
-    sort($l);
-    return $l;
-}
 
 function yz_json(string $t): array {
     $t = trim(preg_replace('/^```(?:json)?|```$/m', '', trim($t)));
