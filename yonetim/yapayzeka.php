@@ -15,7 +15,7 @@ if ($post) {
     @set_time_limit(150);
     if ($s === 'kaydet') {
         $yeni = [];
-        foreach (['gemini', 'nim'] as $p) {
+        foreach (['gemini', 'gemini2', 'gemini3', 'nim'] as $p) {
             $k = trim((string)($_POST[$p . '_anahtar'] ?? ''));
             if (!empty($_POST[$p . '_sil'])) { $yeni[$p . '_anahtar'] = ''; }
             elseif ($k !== '') { $yeni[$p . '_anahtar'] = $k; }
@@ -28,17 +28,21 @@ if ($post) {
     if ($s === 'dene') {
         $a = yz_ayar(); $sonuc = [];
         $istem = 'Yalnız şu JSON\'u döndür: {"ok":true,"selam":"merhaba"}';
-        foreach (['Gemini' => ['gemini_anahtar', 'gemini_model', 'yz_gemini'], 'NVIDIA' => ['nim_anahtar', 'nim_model', 'yz_nim']] as $ad => [$alan, $mk, $fn]) {
-            if ($a[$alan] === '') { $sonuc[] = "$ad: anahtar girilmemiş"; continue; }
-            foreach (yz_modeller($a[$mk]) as $model) {
-                $t0 = microtime(true);
-                try { $j = yz_json($fn($istem, $a, 12, $model)); $sonuc[] = "$ad $model: çalışıyor ✓ (" . round(microtime(true) - $t0, 1) . ' sn)' . (!empty($j['ok']) ? '' : ' – cevap beklenenden farklı'); }
-                catch (Throwable $e) {
-                    $m = $e->getMessage(); $sonuc[] = "$ad $model: HATA – " . mb_substr($m, 0, 120);
-                    if ($ad === 'NVIDIA' && preg_match('/HTTP (404|410)/', $m)) {
-                        $l = yz_nim_modelleri($a['nim_anahtar']);
-                        if ($l) { $sonuc[] = 'NVIDIA\'da şu an kullanılabilen DeepSeek modelleri: ' . implode(', ', array_slice($l, 0, 8)); }
-                    }
+        // her anahtarı tek tek dener (Gemini: ilk iki model; süre ~60 sn'yi aşmasın diye model başına 10 sn)
+        $denenecek = [];
+        foreach (yz_gemini_anahtarlar($a) as $n => $k) { foreach (array_slice(yz_modeller($a['gemini_model']), 0, 2) as $m) { $denenecek[] = ["Gemini anahtar $n", 'yz_gemini', ['gemini_anahtar' => $k] + $a, $m]; } }
+        if ($a['nim_anahtar'] !== '') { foreach (array_slice(yz_modeller($a['nim_model']), 0, 1) as $m) { $denenecek[] = ['NVIDIA', 'yz_nim', $a, $m]; } }
+        if (!$denenecek) { $sonuc[] = 'Hiç anahtar girilmemiş.'; }
+        $bas = time();
+        foreach ($denenecek as [$ad, $fn, $aa, $model]) {
+            if (time() - $bas > 45) { $sonuc[] = "$ad $model: denenmedi (süre)"; continue; }
+            $t0 = microtime(true);
+            try { $j = yz_json($fn($istem, $aa, 10, $model)); $sonuc[] = "$ad – $model: çalışıyor ✓ (" . round(microtime(true) - $t0, 1) . ' sn)' . (!empty($j['ok']) ? '' : ' – cevap beklenenden farklı'); }
+            catch (Throwable $e) {
+                $m = $e->getMessage(); $sonuc[] = "$ad – $model: HATA – " . mb_substr($m, 0, 110);
+                if ($ad === 'NVIDIA' && preg_match('/HTTP (404|410)/', $m)) {
+                    $l = yz_nim_modelleri($a['nim_anahtar']);
+                    if ($l) { $sonuc[] = 'NVIDIA\'da şu an kullanılabilen DeepSeek modelleri: ' . implode(', ', array_slice($l, 0, 8)); }
                 }
             }
         }
@@ -80,8 +84,13 @@ Yapay zekâ çalışmazsa ilan yine eklenir, açıklaması sonra yazılır.</p>
   <form method="post" action="yapayzeka.php?s=kaydet" autocomplete="off"><?= csrf_alan() ?>
     <label>1) Google Gemini API anahtarı – <small><?= $maske($a['gemini_anahtar']) ?></small>
       <input type="password" name="gemini_anahtar" placeholder="AIza… (değiştirmek için yapıştırın, boş bırakırsanız eskisi kalır)"></label>
-    <label>Gemini modelleri <small>(virgülle; sırayla denenir)</small> <input name="gemini_model" value="<?= h($a['gemini_model']) ?>"></label>
-    <?php if ($a['gemini_anahtar'] !== ''): ?><label class="y-onay"><input type="checkbox" name="gemini_sil" value="1"> Gemini anahtarını sil</label><?php endif; ?>
+    <?php if ($a['gemini_anahtar'] !== ''): ?><label class="y-onay"><input type="checkbox" name="gemini_sil" value="1"> 1. Gemini anahtarını sil</label><?php endif; ?>
+    <?php foreach ([2, 3] as $n): $kk = "gemini{$n}_anahtar"; ?>
+    <label>Ek Gemini API anahtarı <?= $n ?> <small>(isteğe bağlı; ilk anahtarın kotası dolunca kullanılır)</small> – <small><?= $maske($a[$kk]) ?></small>
+      <input type="password" name="gemini<?= $n ?>_anahtar" placeholder="AIza… (boş bırakırsanız eskisi kalır)"></label>
+    <?php if ($a[$kk] !== ''): ?><label class="y-onay"><input type="checkbox" name="gemini<?= $n ?>_sil" value="1"> <?= $n ?>. Gemini anahtarını sil</label><?php endif; ?>
+    <?php endforeach; ?>
+    <label>Gemini modelleri <small>(virgülle; sırayla denenir, her model için anahtarlar sırayla)</small> <input name="gemini_model" value="<?= h($a['gemini_model']) ?>"></label>
     <label>2) Yedek: NVIDIA NIM API anahtarı – <small><?= $maske($a['nim_anahtar']) ?></small>
       <input type="password" name="nim_anahtar" placeholder="nvapi-… (değiştirmek için yapıştırın, boş bırakırsanız eskisi kalır)"></label>
     <label>NVIDIA modelleri <small>(virgülle; sırayla denenir)</small> <input name="nim_model" value="<?= h($a['nim_model']) ?>"></label>
@@ -89,8 +98,8 @@ Yapay zekâ çalışmazsa ilan yine eklenir, açıklaması sonra yazılır.</p>
     <p><button class="y-btn">Kaydet</button></p>
   </form>
   <form method="post" action="yapayzeka.php?s=dene"><?= csrf_alan() ?><button class="y-btn y-btn-cizgi">Bağlantıyı dene</button>
-    <small>İkisine de kısa bir deneme isteği gönderir.</small></form>
-  <?php $bk = yz_bekle_oku(); if ($bk): ?><p><small>Şu an beklemede (kota doldu ya da yoğun, sonra kendiliğinden tekrar denenir): <?php foreach ($bk as $m => $t): ?><?= h($m) ?> – <?= h(date('H:i', $t)) ?>'e kadar; <?php endforeach; ?></small></p><?php endif; ?>
+    <small>Her anahtara ayrı ayrı kısa bir deneme isteği gönderir (en çok ~50 sn).</small></form>
+  <?php $bk = yz_bekle_oku(); if ($bk): ?><p><small>Şu an beklemede (kota doldu ya da yoğun, sonra kendiliğinden tekrar denenir): <?php foreach ($bk as $m => $t): ?><?= h(preg_replace('/^g(\d):/', '$1. anahtar · ', $m)) ?> – <?= h(date('H:i', $t)) ?>'e kadar; <?php endforeach; ?></small></p><?php endif; ?>
   <p><small>Anahtarlar yalnız bu sunucuda saklanır (GitHub'a gitmez, sayfada gösterilmez). İlan açıklamaları yazılırken Google'a / NVIDIA'ya
   yalnız araç bilgisi ve sahibinden ilan metni gönderilir; müşteri bilgisi gönderilmez.</small></p>
 </section>
