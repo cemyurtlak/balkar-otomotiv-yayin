@@ -20,15 +20,20 @@ if ($post) {
         $sil = array_map('intval', (array)($_POST['sil'] ?? []));
         $l = array_values(array_filter($l, fn($k, $i) => !in_array($i + 1, $sil, true), ARRAY_FILTER_USE_BOTH));
         $sh = sifre_hash(); $eklenen = 0;
-        foreach (preg_split('/\R/', (string)($_POST['yeni_anahtarlar'] ?? '')) as $sat => $k) {
-            $k = trim($k, " \t\"'");
-            if ($k === '') { continue; }
-            $n = $sat + 1;
-            if ($sh !== null && password_verify($k, $sh)) { $hata[] = "$n. satırda panel şifresi var; eklenmedi"; continue; }
-            if (!preg_match('/^AIza[\w\-]{30,60}$/', $k)) { $hata[] = "$n. satır Gemini anahtarına benzemiyor (\"AIza\" ile başlar); eklenmedi"; continue; }
-            if (in_array($k, $l, true)) { $hata[] = "$n. satırdaki anahtar zaten kayıtlı"; continue; }
+        // kutudaki metinden anahtarları ayıkla: satır, boşluk, virgül, tırnak fark etmez (her biri "AIza…" ile başlar)
+        $metin = (string)($_POST['yeni_anahtarlar'] ?? '');
+        preg_match_all('/AIza[0-9A-Za-z_\-]{30,60}/', $metin, $bul);
+        $kalan_metin = trim(preg_replace('/AIza[0-9A-Za-z_\-]{30,60}|[\s,;"\']+/', ' ', $metin));
+        foreach ($bul[0] as $sira => $k) {
+            $n = $sira + 1;
+            if (in_array($k, $l, true)) { $hata[] = "$n. anahtar (…" . substr($k, -4) . ') zaten kayıtlı'; continue; }
             if (count($l) >= 10) { $hata[] = 'en çok 10 anahtar; fazlası eklenmedi'; break; }
             $l[] = $k; $eklenen++;
+        }
+        if ($kalan_metin !== '') {
+            $sh = sifre_hash();
+            $hata[] = ($sh !== null && password_verify($kalan_metin, $sh)) ? 'kutuda panel şifresi vardı; eklenmedi'
+                : 'kutuda Gemini anahtarı olmayan ' . mb_strlen($kalan_metin) . ' karakterlik yazı vardı; eklenmedi';
         }
         $yeni['gemini_anahtarlar'] = $l;
         $m = trim((string)($_POST['gemini_model'] ?? ''));
@@ -37,6 +42,10 @@ if ($post) {
         $okunan = count(yz_gemini_anahtarlar(yz_ayar()));   // dosyadan yeniden okuyup doğrula
         $ozet = "Kaydedildi: $eklenen anahtar eklendi" . ($sil ? ', ' . count($sil) . ' silindi' : '') . ", toplam $okunan anahtar.";
         if ($okunan !== count($l)) { $hata[] = 'kayıt doğrulanamadı (' . count($l) . " yazıldı, $okunan okundu); sayfayı yenileyip tekrar deneyin"; }
+        // tanı kaydı (anahtarların kendisi yazılmaz): sorun olursa ne geldiği ve ne yazıldığı görülebilsin
+        @file_put_contents(YEDEK . '/yz_kayit_son.json', json_encode(['zaman' => date('c'), 'metin_uzunluk' => strlen($metin),
+            'satir' => count(preg_split('/\R/', trim($metin))), 'bulunan' => count($bul[0]), 'eklenen' => $eklenen, 'silinen' => $sil,
+            'yazilan' => count($l), 'okunan' => $okunan, 'uyarilar' => $hata], JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT));
         git('yapayzeka.php', $hata ? $ozet . ' Dikkat: ' . implode(' · ', $hata) . '.' : $ozet, (bool)$hata);
     }
     if ($s === 'dene') {
