@@ -36,13 +36,18 @@ function hata_cevap(string $mesaj, array $ek, array $fazla = []): never {
     cevap(422, ['ok' => false, 'hata' => $mesaj] + $fazla);
 }
 // eklenti tarafında olan hata (sahibinden girişi, sayfa yapısı, zaman aşımı…): yalnız kaydedilir
+// birden çok bilgisayar: otomatik çalışmadan önce eklenti son başarılı güncellemenin zamanını sorar (yakınsa atlar)
+if (!empty($g['son_sor'])) {
+    $d = eklenti_durum_oku();
+    cevap(200, ['ok' => true, 'son_basari' => $d['son_basari'] ?? null, 'simdi' => date('c'), 'kilitli' => is_file(sys_get_temp_dir() . '/balkar_sahibinden.lock') && !(function () { $f = fopen(sys_get_temp_dir() . '/balkar_sahibinden.lock', 'c'); $ok = $f && flock($f, LOCK_EX | LOCK_NB); if ($ok) { flock($f, LOCK_UN); } return $ok; })()]);
+}
 if (!empty($g['hata_bildir'])) {
     eklenti_durum_yaz($ek + ['son_hata' => mb_substr(strip_tags((string)$g['hata_bildir']), 0, 500), 'son_hata_zaman' => date('c')]);
     cevap(200, ['ok' => true]);
 }
 
 $kilit = fopen(sys_get_temp_dir() . '/balkar_sahibinden.lock', 'c');
-if (!$kilit || !flock($kilit, LOCK_EX | LOCK_NB)) { cevap(409, ['ok' => false, 'hata' => 'Başka bir güncelleme sürüyor.']); }
+if (!$kilit || !flock($kilit, LOCK_EX | LOCK_NB)) { cevap(409, ['ok' => false, 'mesgul' => true, 'hata' => 'Başka bir bilgisayardaki eklenti şu an siteyi güncelliyor.']); }
 
 // yalnız yapay zekâ devamı: sahibinden verisi gönderilmez, açıklaması bekleyen araçlar yazılır (eklenti kalan varsa tekrar çağırır)
 if (!empty($g['yz_devam'])) {
