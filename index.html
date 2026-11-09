@@ -34,16 +34,18 @@
 <script>
   (function(){
     var izinli = ["tr", "en", "ru", "de"];
+    // Öncelik (Cem, 9 Kasım): 1) ziyaretçinin sitede elle seçtiği dil  2) tarayıcı dillerinden biri Türkçe ise Türkçe
+    // 3) tarayıcının İLK dili Rusça ya da Almanca ise o  4) aksi halde (İngilizce dahil) Türkçe; İngilizce sayfa elle seçilir.
+    //    (Türkiye'de birçok kişi Chrome'u İngilizce kullanıyor; bu yüzden İngilizce tarayıcı Türkçe sayfaya gelir.)
     var secili = null;
     try { secili = localStorage.getItem("balkar_dil"); } catch (e) {}
-    if (!secili) {
-      var tarayici = (navigator.languages || [navigator.language || "tr"]);
-      for (var i = 0; i < tarayici.length && !secili; i++) {
-        var k = String(tarayici[i]).slice(0, 2).toLowerCase();
-        if (izinli.indexOf(k) > -1) secili = k;
-      }
+    if (izinli.indexOf(secili) < 0) {
+      var tarayici = (navigator.languages && navigator.languages.length ? navigator.languages : [navigator.language || "tr"])
+        .map(function (x) { return String(x).slice(0, 2).toLowerCase(); });
+      if (tarayici.indexOf("tr") > -1) secili = "tr";
+      else if ((tarayici[0] === "ru" || tarayici[0] === "de") && izinli.indexOf(tarayici[0]) > -1) secili = tarayici[0];
+      else secili = "tr";
     }
-    if (izinli.indexOf(secili) < 0) secili = "tr";
     location.replace(secili + "/index.html" + location.hash);
   })();
 </script>
