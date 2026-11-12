@@ -9,6 +9,13 @@ DirectoryIndex index.html index.php
   RewriteCond %{HTTP_HOST} ^www\.balkarotomotiv\.com$ [NC]
   RewriteRule ^ https://balkarotomotiv.com%{REQUEST_URI} [L,R=301]
 </IfModule>
+# Aşama 62: ana adres (balkarotomotiv.com/) sunucu tarafında Türkçe ana sayfaya kalıcı yönlenir (301): Google ve
+# İşletme Profili linki doğrudan Türkçe sayfaya ulaşır (eskiden "noindex" kök sayfa + JavaScript yönlendirmesiydi).
+# Rusça/Almanca tarayıcı ve elle seçilmiş dil: tr/index.html içindeki küçük betik yönlendirir (CDN dil karışıklığı olmasın diye sunucuda değil).
+<IfModule mod_rewrite.c>
+  RewriteEngine On
+  RewriteRule ^(index\.html)?$ /tr/ [R=301,L]
+</IfModule>
 
 # HTTPS'e yönlendir (SSL kurulduktan sonra açın: baştaki # işaretlerini kaldırın)
 # RewriteEngine On
