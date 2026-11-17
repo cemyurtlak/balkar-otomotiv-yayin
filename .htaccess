@@ -28,6 +28,8 @@ DirectoryIndex index.html index.php
   RewriteEngine On
   RewriteCond %{QUERY_STRING} (^|&)id=[0-9]+
   RewriteRule ^(tr|en|ru|de)/arac\.html$ arac.php?dil=$1 [QSA,L]
+  # site haritası her istekte güncel araç listesinden üretilir (satılan çıkar, yeni eklenen girer)
+  RewriteRule ^sitemap\.xml$ sitemap.php [L]
 </IfModule>
 
 <IfModule mod_headers.c>

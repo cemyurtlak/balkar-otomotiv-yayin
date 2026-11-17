@@ -25,7 +25,14 @@ $a = null;
 foreach (($veri['araclar'] ?? []) as $x) {
     if ((string)($x['id'] ?? '') === $id && ($x['durum'] ?? null) !== 'satildi') { $a = $x; break; }
 }
-if ($id === '' || !$a || !$m) { echo $html; exit; }
+if ($id === '' || !$a || !$m) {
+    // Satılmış / kaldırılmış / bilinmeyen ilan: sayfa yine açılır (site.js "ilan bulunamadı" gösterir)
+    // ama Google'a "bu sayfa artık yok" denir (410) → "Soft 404" ve "alternatif sayfa" uyarıları oluşmaz.
+    if ($id !== '' && $m) { http_response_code(410); }
+    echo $html; exit;
+}
+// gerçek ilan: boş şablondaki noindex etiketini kaldır
+$html = preg_replace('#<meta name="robots" content="[^"]*" data-arac-bos>\s*#', '', $html, 1);
 
 function e(string $s): string { return htmlspecialchars($s, ENT_QUOTES | ENT_HTML5, 'UTF-8'); }
 
